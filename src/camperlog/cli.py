@@ -39,10 +39,7 @@ def trip_add(origin, destination, km, date):
         raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
 
     add_trip(origin, destination, km, date)
-    msg = (
-        f"[green]✓ Reise gespeichert:[/green] "
-        f"{origin} → {destination} ({km} km)"
-    )
+    msg = f"[green]✓ Reise gespeichert:[/green] " f"{origin} → {destination} ({km} km)"
     console.print(msg)
 
 
@@ -80,9 +77,7 @@ def fuel():
 
 @fuel.command()
 @click.option("--liters", type=float, required=True, help="Getankte Liter")
-@click.option(
-    "--price-per-liter", type=float, required=True, help="Preis pro Liter"
-)
+@click.option("--price-per-liter", type=float, required=True, help="Preis pro Liter")
 @click.option("--odometer", type=int, required=True, help="Kilometerstand")
 @click.option("--date", type=str, required=True, help="Datum (YYYY-MM-DD)")
 def add(liters, price_per_liter, odometer, date):
