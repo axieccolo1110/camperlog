@@ -39,7 +39,10 @@ def trip_add(origin, destination, km, date):
         raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
 
     add_trip(origin, destination, km, date)
-    msg = f"[green]✓ Reise gespeichert:[/green] " f"{origin} → {destination} ({km} km)"
+    msg = (
+        f"[green]✓ Reise gespeichert:[/green] "
+        f"{origin} → {destination} ({km} km)"
+    )
     console.print(msg)
 
 
@@ -69,10 +72,6 @@ def trip_list():
     console.print(table)
 
 
-if __name__ == "__main__":
-    cli()
-
-
 @cli.group()
 def fuel():
     """Fuel management."""
@@ -81,7 +80,9 @@ def fuel():
 
 @fuel.command()
 @click.option("--liters", type=float, required=True, help="Getankte Liter")
-@click.option("--price-per-liter", type=float, required=True, help="Preis pro Liter")
+@click.option(
+    "--price-per-liter", type=float, required=True, help="Preis pro Liter"
+)
 @click.option("--odometer", type=int, required=True, help="Kilometerstand")
 @click.option("--date", type=str, required=True, help="Datum (YYYY-MM-DD)")
 def add(liters, price_per_liter, odometer, date):
@@ -93,7 +94,7 @@ def add(liters, price_per_liter, odometer, date):
         console.print(msg)
         return
 
-    entry = add_fuel_entry(liters, price_per_liter, odometer, date)
+    entry = add_fuel_entry(date, liters, price_per_liter, odometer)
     console.print(
         f"[green]✓ Tankfüllung gespeichert:[/green] "
         f"{liters}L @ {price_per_liter}€/L = {entry.total_cost:.2f}€"
@@ -138,3 +139,7 @@ def fuel_list():
         )
 
     console.print(table)
+
+
+if __name__ == "__main__":
+    cli()
