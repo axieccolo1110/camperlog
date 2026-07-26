@@ -1,4 +1,5 @@
 import click
+from camperlog.consumption import consumption_labels
 from camperlog.database import (
     init_db,
     add_trip,
@@ -113,18 +114,7 @@ def fuel_list():
     table.add_column("km-Stand", style="magenta", justify="right")
     table.add_column("L/100km", style="blue", justify="right")
 
-    # entries sind absteigend nach Datum sortiert (neueste zuerst),
-    # der Vorgänger-km-Stand steht also beim naechsten (aelteren) Eintrag
-    for i, entry in enumerate(entries):
-        if i == len(entries) - 1:
-            consumption = "-"
-        else:
-            km_diff = entry.odometer - entries[i + 1].odometer
-            if km_diff > 0:
-                consumption = f"{(entry.liters / km_diff * 100):.1f}"
-            else:
-                consumption = "?"
-
+    for entry, consumption in zip(entries, consumption_labels(entries)):
         table.add_row(
             entry.date,
             f"{entry.liters:.1f}",

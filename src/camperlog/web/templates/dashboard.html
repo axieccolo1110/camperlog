@@ -120,7 +120,7 @@
   <h2>Letzte Tankfüllungen</h2>
   <table>
     <thead>
-      <tr><th>Datum</th><th>Liter</th><th>€/L</th><th>Gesamt</th><th>km-Stand</th></tr>
+      <tr><th>Datum</th><th>Liter</th><th>€/L</th><th>Gesamt</th><th>km-Stand</th><th>L/100km</th></tr>
     </thead>
     <tbody>
       {% for e in fuel_entries %}
@@ -130,9 +130,10 @@
         <td>{{ "%.3f"|format(e.price_per_liter) }} €</td>
         <td>{{ "%.2f"|format(e.total_cost) }} €</td>
         <td>{{ e.odometer }} km</td>
+        <td>{{ e.consumption }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="5" style="color:#888">Keine Tankfüllungen vorhanden.</td></tr>
+      <tr><td colspan="6" style="color:#888">Keine Tankfüllungen vorhanden.</td></tr>
       {% endfor %}
     </tbody>
   </table>
