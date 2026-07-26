@@ -1,4 +1,4 @@
-.PHONY: help install dev-install test lint format run clean check
+.PHONY: help install dev-install test lint format run serve clean check
 
 help:
 	@echo "CamperLog — Verfügbare Kommandos:"
@@ -8,6 +8,7 @@ help:
 	@echo "  make lint          — Code-Qualitätsprüfung"
 	@echo "  make format        — Auto-Format mit Black"
 	@echo "  make run           — Starte camperlog --help"
+	@echo "  make serve         — Starte Web-Server (FastAPI + Dashboard, --reload)"
 	@echo "  make clean         — Cleanup (__pycache__, .pytest_cache, etc.)"
 	@echo "  make check         — Alle Checks (lint + test)"
 
@@ -31,6 +32,9 @@ format:
 
 run:
 	python -m camperlog.cli --help
+
+serve:
+	camperlog serve --reload
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +

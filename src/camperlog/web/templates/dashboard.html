@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CamperLog Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; padding: 2rem; }
+    h1 { font-size: 1.8rem; margin-bottom: 1.5rem; }
+    h2 { font-size: 1.1rem; margin-bottom: 0.75rem; color: #333; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .card h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-bottom: .4rem; }
+    .card p { font-size: 2rem; font-weight: 700; color: #2563eb; }
+
+    section { margin-bottom: 2.5rem; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    th { background: #2563eb; color: #fff; text-align: left; padding: .6rem 1rem; font-size: .85rem; }
+    td { padding: .6rem 1rem; font-size: .9rem; border-bottom: 1px solid #f0f0f0; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #fafafa; }
+
+    .chart-wrap { background: #fff; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+
+    .form-card { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .form-card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #333; }
+    .form-row { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: .3rem; }
+    .form-group label { font-size: .8rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .04em; }
+    .form-group input { padding: .45rem .75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; font-family: inherit; }
+    .form-group input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+    .form-group.km input { width: 7rem; }
+    .btn-primary { padding: .5rem 1.25rem; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: .9rem; font-weight: 600; cursor: pointer; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .form-error { margin-top: .5rem; font-size: .85rem; color: #dc2626; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+
+<h1>CamperLog Dashboard</h1>
+
+<div class="stats">
+  <div class="card">
+    <h2>Reisen</h2>
+    <p>{{ total_trips }}</p>
+  </div>
+  <div class="card">
+    <h2>Kilometer</h2>
+    <p>{{ total_km }}</p>
+  </div>
+  <div class="card">
+    <h2>Tankkosten</h2>
+    <p>{{ total_fuel_cost }} €</p>
+  </div>
+</div>
+
+<section>
+  <h2>Letzte Reisen</h2>
+  <table>
+    <thead>
+      <tr><th>Datum</th><th>Von</th><th>Nach</th><th>km</th></tr>
+    </thead>
+    <tbody>
+      {% for t in trips %}
+      <tr>
+        <td>{{ t.date }}</td>
+        <td>{{ t.origin }}</td>
+        <td>{{ t.destination }}</td>
+        <td>{{ t.km }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" style="color:#888">Keine Reisen vorhanden.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="form-card">
+    <h2>Neue Reise erfassen</h2>
+    <form id="trip-form" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="trip-date">Datum</label>
+          <input type="date" id="trip-date" required>
+        </div>
+        <div class="form-group">
+          <label for="trip-origin">Von</label>
+          <input type="text" id="trip-origin" placeholder="z.B. München" required>
+        </div>
+        <div class="form-group">
+          <label for="trip-destination">Nach</label>
+          <input type="text" id="trip-destination" placeholder="z.B. Berlin" required>
+        </div>
+        <div class="form-group km">
+          <label for="trip-km">km</label>
+          <input type="number" id="trip-km" min="1" placeholder="600" required>
+        </div>
+        <button type="submit" class="btn-primary">Reise speichern</button>
+      </div>
+      <p class="form-error" id="trip-error"></p>
+    </form>
+  </div>
+</section>
+
+<section>
+  <h2>Letzte Tankfüllungen</h2>
+  <table>
+    <thead>
+      <tr><th>Datum</th><th>Liter</th><th>€/L</th><th>Gesamt</th><th>km-Stand</th></tr>
+    </thead>
+    <tbody>
+      {% for e in fuel_entries %}
+      <tr>
+        <td>{{ e.date }}</td>
+        <td>{{ "%.1f"|format(e.liters) }} L</td>
+        <td>{{ "%.3f"|format(e.price_per_liter) }} €</td>
+        <td>{{ "%.2f"|format(e.total_cost) }} €</td>
+        <td>{{ e.odometer }} km</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="color:#888">Keine Tankfüllungen vorhanden.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Tankkosten über Zeit</h2>
+  <div class="chart-wrap">
+    <canvas id="fuelChart" height="120"></canvas>
+  </div>
+  <script>
+    new Chart(document.getElementById('fuelChart'), {
+      type: 'line',
+      data: {
+        labels: {{ chart_labels | tojson }},
+        datasets: [{
+          label: 'Kosten pro Tankfüllung (€)',
+          data: {{ chart_costs | tojson }},
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37,99,235,0.08)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' €' } } }
+      }
+    });
+  </script>
+</section>
+
+<script>
+  document.getElementById('trip-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('trip-error');
+    errorEl.textContent = '';
+
+    const date = document.getElementById('trip-date').value;
+    const origin = document.getElementById('trip-origin').value.trim();
+    const destination = document.getElementById('trip-destination').value.trim();
+    const km = parseInt(document.getElementById('trip-km').value, 10);
+
+    if (!date || !origin || !destination || !km) {
+      errorEl.textContent = 'Bitte alle Felder ausfüllen.';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, origin, destination, km }),
+      });
+      if (res.ok) {
+        location.reload();
+      } else {
+        errorEl.textContent = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
+      }
+    } catch {
+      errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+    }
+  });
+</script>
+
+</body>
+</html>

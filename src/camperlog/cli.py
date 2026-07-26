@@ -136,5 +136,16 @@ def fuel_list():
     console.print(table)
 
 
+@cli.command("serve")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Bind-Adresse")
+@click.option("--port", default=8000, show_default=True, help="Port")
+@click.option("--reload", is_flag=True, default=False, help="Auto-Reload (Entwicklungsmodus)")
+def serve(host, port, reload):
+    """Starte den Web-Server (FastAPI + Dashboard)."""
+    import uvicorn
+
+    uvicorn.run("camperlog.web.api:app", host=host, port=port, reload=reload)
+
+
 if __name__ == "__main__":
     cli()

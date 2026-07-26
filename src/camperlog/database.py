@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from pathlib import Path
 
@@ -5,14 +6,19 @@ from typing import List
 
 from camperlog.models import Trip, FuelEntry
 
-# Korrekt: data/ im Projekt-Root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DB_PATH = PROJECT_ROOT / "data" / "camperlog.db"
+
+
+def _get_db_path() -> Path:
+    env = os.environ.get("CAMPERLOG_DB_PATH")
+    if env:
+        return Path(env)
+    return PROJECT_ROOT / "data" / "camperlog.db"
 
 
 def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
     """Speichert eine neue Reise in der Datenbank."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(_get_db_path())
     cursor = conn.cursor()
 
     cursor.execute(
@@ -38,7 +44,7 @@ def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
 
 def get_all_trips() -> List[Trip]:
     """Lädt alle Reisen aus der Datenbank."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(_get_db_path())
     cursor = conn.cursor()
 
     cursor.execute(
@@ -62,10 +68,10 @@ def get_all_trips() -> List[Trip]:
 
 def init_db():
     """Initialisiert die Datenbank (beim ersten Mal)."""
-    # Stelle sicher, dass data/ existiert
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    db_path = _get_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute(
@@ -103,7 +109,7 @@ def add_fuel_entry(
     """Speichert einen neuen Tankvorgang in der Datenbank."""
     total_cost = liters * price_per_liter
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(_get_db_path())
     cursor = conn.cursor()
 
     cursor.execute(
@@ -130,7 +136,7 @@ def add_fuel_entry(
 
 def get_all_fuel() -> List[FuelEntry]:
     """Lädt alle Tankvorgänge aus der Datenbank."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(_get_db_path())
     cursor = conn.cursor()
 
     cursor.execute(
