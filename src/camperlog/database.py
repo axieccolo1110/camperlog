@@ -1,23 +1,13 @@
 import sqlite3
 from pathlib import Path
-from dataclasses import dataclass
 
 from typing import List
+
+from camperlog.models import Trip, FuelEntry
 
 # Korrekt: data/ im Projekt-Root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "data" / "camperlog.db"
-
-
-@dataclass
-class Trip:
-    """Datenklasse für eine Reise."""
-
-    id: int
-    origin: str
-    destination: str
-    km: int
-    date: str  # Format: YYYY-MM-DD
 
 
 def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
@@ -68,18 +58,6 @@ def get_all_trips() -> List[Trip]:
         )
         for row in rows
     ]
-
-
-@dataclass
-class FuelEntry:
-    """Datenklasse für einen Tankvorgang."""
-
-    id: int
-    date: str  # Format: YYYY-MM-DD
-    liters: float
-    price_per_liter: float
-    odometer: int
-    total_cost: float
 
 
 def init_db():

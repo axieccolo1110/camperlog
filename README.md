@@ -360,7 +360,7 @@ Dieses Projekt ist lizenziert unter der **MIT License** – siehe [LICENSE](LICE
 Probleme oder Fragen?
 
 - 📧 Email: alexander.eckert@mailbox.org
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/camperlog/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/axieccolo1110/camperlog/issues)
 
 ---
 
