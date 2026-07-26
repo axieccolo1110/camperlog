@@ -8,8 +8,8 @@ help:
 	@echo "  make lint          — Code-Qualitätsprüfung"
 	@echo "  make format        — Auto-Format mit Black"
 	@echo "  make run           — Starte camperlog --help"
-	@echo "  make serve         — Starte Web-Server lokal (SQLite, --reload)
-  make serve-prod    — Starte Web-Server mit Railway PostgreSQL (DATABASE_URL nötig)"
+	@echo "  make serve         — Starte Web-Server lokal (SQLite, --reload)"
+	@echo "  make serve-prod    — Starte Web-Server mit Railway PostgreSQL (DATABASE_URL nötig)"
 	@echo "  make clean         — Cleanup (__pycache__, .pytest_cache, etc.)"
 	@echo "  make check         — Alle Checks (lint + test)"
 
