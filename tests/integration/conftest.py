@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def api_client(tmp_path, monkeypatch):
     db_file = tmp_path / "test_api.db"
-    monkeypatch.setenv("CAMPERLOG_DB_PATH", str(db_file))
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
 
     from camperlog.database import init_db
     from camperlog.web.api import app
