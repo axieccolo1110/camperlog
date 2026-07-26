@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "camperlog"
+version = "0.1.0"
+description = "CLI for logging camper van trips, fuel, and maintenance"
+authors = [{name = "Alexander Eckert", email = "alexander.eckert@mailbox.org"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+]
+
+[project.scripts]
+camperlog = "camperlog.cli:cli"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=src/camperlog"
