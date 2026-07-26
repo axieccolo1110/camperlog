@@ -8,7 +8,6 @@ from sqlalchemy import (
     Float,
     Integer,
     String,
-    Text,
     create_engine,
     desc,
 )

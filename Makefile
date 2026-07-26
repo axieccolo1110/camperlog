@@ -1,4 +1,4 @@
-.PHONY: help install dev-install test lint format run serve clean check
+.PHONY: help install dev-install test lint format run serve serve-prod clean check
 
 help:
 	@echo "CamperLog — Verfügbare Kommandos:"
@@ -8,7 +8,8 @@ help:
 	@echo "  make lint          — Code-Qualitätsprüfung"
 	@echo "  make format        — Auto-Format mit Black"
 	@echo "  make run           — Starte camperlog --help"
-	@echo "  make serve         — Starte Web-Server (FastAPI + Dashboard, --reload)"
+	@echo "  make serve         — Starte Web-Server lokal (SQLite, --reload)
+  make serve-prod    — Starte Web-Server mit Railway PostgreSQL (DATABASE_URL nötig)"
 	@echo "  make clean         — Cleanup (__pycache__, .pytest_cache, etc.)"
 	@echo "  make check         — Alle Checks (lint + test)"
 
@@ -35,6 +36,10 @@ run:
 
 serve:
 	camperlog serve --reload
+
+serve-prod:
+	@test -n "$$DATABASE_URL" || (echo "Fehler: DATABASE_URL ist nicht gesetzt." && exit 1)
+	DATABASE_URL="$$DATABASE_URL" camperlog serve
 
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
