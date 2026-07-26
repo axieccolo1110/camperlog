@@ -30,29 +30,33 @@ def trip_add(origin, destination, km, date):
         datetime.strptime(date, "%Y-%m-%d")
     except ValueError:
         raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
-    
-    trip_obj = add_trip(origin, destination, km, date)
-    console.print(f"[green]✓ Reise gespeichert:[/green] {origin} → {destination} ({km} km)")
+
+    add_trip(origin, destination, km, date)
+    console.print(
+        f"[green]✓ Reise gespeichert:[/green] {origin} → {destination} ({km} km)"
+    )
 
 
 @trip.command("list")
 def trip_list():
     """Zeigt alle Reisen an."""
     trips = get_all_trips()
-    
+
     if not trips:
         console.print("[yellow]Keine Reisen erfasst.[/yellow]")
         return
-    
+
     table = Table(title="📍 Alle Reisen")
     table.add_column("Datum", style="cyan")
     table.add_column("Von", style="magenta")
     table.add_column("Nach", style="magenta")
     table.add_column("km", style="green", justify="right")
-    
+
     for trip_item in trips:
-        table.add_row(trip_item.date, trip_item.origin, trip_item.destination, str(trip_item.km))
-    
+        table.add_row(
+            trip_item.date, trip_item.origin, trip_item.destination, str(trip_item.km)
+        )
+
     console.print(table)
 
 
