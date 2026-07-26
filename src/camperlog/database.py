@@ -66,9 +66,7 @@ def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
     parsed_date = date_type.fromisoformat(date)
     engine = _get_engine()
     with Session(engine) as session:
-        row = TripRow(
-            origin=origin, destination=destination, km=km, date=parsed_date
-        )
+        row = TripRow(origin=origin, destination=destination, km=km, date=parsed_date)
         session.add(row)
         session.commit()
         session.refresh(row)
@@ -132,9 +130,7 @@ def get_all_fuel() -> List[FuelEntry]:
     """Lädt alle Tankvorgänge aus der Datenbank."""
     engine = _get_engine()
     with Session(engine) as session:
-        rows = (
-            session.query(FuelEntryRow).order_by(desc(FuelEntryRow.date)).all()
-        )
+        rows = session.query(FuelEntryRow).order_by(desc(FuelEntryRow.date)).all()
         return [
             FuelEntry(
                 id=r.id,
