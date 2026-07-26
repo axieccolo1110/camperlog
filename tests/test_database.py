@@ -1,4 +1,3 @@
-
 from camperlog.database import add_trip, get_all_trips
 
 
