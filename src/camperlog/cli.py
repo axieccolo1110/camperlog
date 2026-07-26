@@ -39,7 +39,7 @@ def trip_add(origin, destination, km, date):
         raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
 
     add_trip(origin, destination, km, date)
-    msg = f"[green]✓ Reise gespeichert:[/green] " f"{origin} → {destination} ({km} km)"
+    msg = f"[green]✓ Reise gespeichert:[/green] {origin} → {destination} ({km} km)"
     console.print(msg)
 
 
@@ -139,7 +139,7 @@ def fuel_list():
 @cli.command("serve")
 @click.option("--host", default="127.0.0.1", show_default=True, help="Bind-Adresse")
 @click.option("--port", default=8000, show_default=True, help="Port")
-@click.option("--reload", is_flag=True, default=False, help="Auto-Reload (Entwicklungsmodus)")
+@click.option("--reload", is_flag=True, default=False, help="Auto-Reload (Entwicklung)")
 def serve(host, port, reload):
     """Starte den Web-Server (FastAPI + Dashboard)."""
     import uvicorn

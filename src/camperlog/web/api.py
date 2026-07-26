@@ -5,7 +5,13 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from camperlog.database import add_fuel_entry, add_trip, get_all_fuel, get_all_trips, init_db
+from camperlog.database import (
+    add_fuel_entry,
+    add_trip,
+    get_all_fuel,
+    get_all_trips,
+    init_db,
+)
 from camperlog.web.schemas import FuelEntryCreate, FuelEntryRead, TripCreate, TripRead
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -24,7 +30,9 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 @app.get("/api/trips", response_model=list[TripRead])
 def list_trips():
     return [
-        TripRead(id=t.id, origin=t.origin, destination=t.destination, km=t.km, date=t.date)
+        TripRead(
+            id=t.id, origin=t.origin, destination=t.destination, km=t.km, date=t.date
+        )
         for t in get_all_trips()
     ]
 
@@ -32,7 +40,9 @@ def list_trips():
 @app.post("/api/trips", response_model=TripRead, status_code=201)
 def create_trip(body: TripCreate):
     t = add_trip(body.origin, body.destination, body.km, body.date)
-    return TripRead(id=t.id, origin=t.origin, destination=t.destination, km=t.km, date=t.date)
+    return TripRead(
+        id=t.id, origin=t.origin, destination=t.destination, km=t.km, date=t.date
+    )
 
 
 @app.get("/api/fuel", response_model=list[FuelEntryRead])

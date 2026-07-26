@@ -1,4 +1,9 @@
-ENTRY = {"date": "2026-08-01", "liters": 45.5, "price_per_liter": 1.879, "odometer": 12500}
+ENTRY = {
+    "date": "2026-08-01",
+    "liters": 45.5,
+    "price_per_liter": 1.879,
+    "odometer": 12500,
+}
 
 
 def test_list_fuel_empty(api_client):
