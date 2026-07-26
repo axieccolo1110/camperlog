@@ -1,4 +1,4 @@
-.PHONY: help install dev-install test lint format run clean
+.PHONY: help install dev-install test lint format run clean check
 
 help:
 	@echo "CamperLog — Verfügbare Kommandos:"
@@ -9,6 +9,7 @@ help:
 	@echo "  make format        — Auto-Format mit Black"
 	@echo "  make run           — Starte camperlog --help"
 	@echo "  make clean         — Cleanup (__pycache__, .pytest_cache, etc.)"
+	@echo "  make check         — Alle Checks (lint + test)"
 
 install:
 	pip install -r requirements.txt
@@ -22,8 +23,8 @@ test:
 
 lint:
 	black --check src/ tests/
-	flake8 src/ tests/
-	mypy src/
+	flake8 src/ tests/ --max-line-length=88
+	mypy src/ --ignore-missing-imports
 
 format:
 	black src/ tests/
@@ -35,3 +36,5 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type d -name .pytest_cache -exec rm -rf {} +
 	rm -rf .mypy_cache
+
+check: lint test
