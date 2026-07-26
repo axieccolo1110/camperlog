@@ -69,10 +69,6 @@ def trip_list():
     console.print(table)
 
 
-if __name__ == "__main__":
-    cli()
-
-
 @cli.group()
 def fuel():
     """Fuel management."""
@@ -93,7 +89,7 @@ def add(liters, price_per_liter, odometer, date):
         console.print(msg)
         return
 
-    entry = add_fuel_entry(liters, price_per_liter, odometer, date)
+    entry = add_fuel_entry(date, liters, price_per_liter, odometer)
     console.print(
         f"[green]✓ Tankfüllung gespeichert:[/green] "
         f"{liters}L @ {price_per_liter}€/L = {entry.total_cost:.2f}€"
@@ -138,3 +134,7 @@ def fuel_list():
         )
 
     console.print(table)
+
+
+if __name__ == "__main__":
+    cli()
