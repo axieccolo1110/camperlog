@@ -73,6 +73,11 @@ def create_fuel(body: FuelEntryCreate):
     )
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
     trips = get_all_trips()
