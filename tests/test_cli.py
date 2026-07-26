@@ -84,3 +84,78 @@ def test_trip_list_with_data(runner, test_db):
     assert result.exit_code == 0
     assert "München" in result.output
     assert "Berlin" in result.output
+
+
+def test_fuel_add_valid(runner, test_db):
+    """Test: fuel-add mit gültigen Parametern."""
+    result = runner.invoke(
+        cli,
+        [
+            "fuel",
+            "add",
+            "--liters",
+            "50.5",
+            "--price-per-liter",
+            "1.85",
+            "--odometer",
+            "45000",
+            "--date",
+            "2026-08-01",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Tankfüllung gespeichert" in result.output
+
+
+def test_fuel_add_invalid_date(runner, test_db):
+    """Test: fuel-add mit ungültigem Datum."""
+    result = runner.invoke(
+        cli,
+        [
+            "fuel",
+            "add",
+            "--liters",
+            "50.5",
+            "--price-per-liter",
+            "1.85",
+            "--odometer",
+            "45000",
+            "--date",
+            "invalid-date",
+        ],
+    )
+
+    assert "Fehler" in result.output or "Format" in result.output
+
+
+def test_fuel_list_empty(runner, test_db):
+    """Test: fuel-list wenn keine Tankfüllungen existieren."""
+    result = runner.invoke(cli, ["fuel", "list"])
+
+    assert result.exit_code == 0
+    assert "Keine Tankfüllungen" in result.output
+
+
+def test_fuel_list_with_data(runner, test_db):
+    """Test: fuel-list mit Daten."""
+    runner.invoke(
+        cli,
+        [
+            "fuel",
+            "add",
+            "--liters",
+            "50.5",
+            "--price-per-liter",
+            "1.85",
+            "--odometer",
+            "45000",
+            "--date",
+            "2026-08-01",
+        ],
+    )
+
+    result = runner.invoke(cli, ["fuel", "list"])
+
+    assert result.exit_code == 0
+    assert "45000" in result.output

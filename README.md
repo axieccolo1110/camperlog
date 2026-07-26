@@ -282,7 +282,7 @@ tests/
 Das Projekt befolgt strikte Code-Standards:
 
 ### Black (Formatter)
-- Line-Length: 79 Zeichen
+- Line-Length: 88 Zeichen
 - Python 3.11+ target
 
 ```bash
