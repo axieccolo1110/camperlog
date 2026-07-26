@@ -1,5 +1,30 @@
-.venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
 .DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+
+# Data (nicht committen!)
+data/
 *.db
