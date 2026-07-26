@@ -159,3 +159,37 @@ def test_fuel_list_with_data(runner, test_db):
 
     assert result.exit_code == 0
     assert "45000" in result.output
+
+
+def test_fuel_list_consumption_calculation(runner, test_db):
+    """Test: L/100km wird korrekt berechnet, auch bei mehreren Eintraegen."""
+    for liters, odometer, date in [
+        (50.0, 10000, "2026-07-01"),
+        (45.0, 10500, "2026-07-15"),
+        (48.0, 11000, "2026-07-26"),
+    ]:
+        runner.invoke(
+            cli,
+            [
+                "fuel",
+                "add",
+                "--liters",
+                str(liters),
+                "--price-per-liter",
+                "1.80",
+                "--odometer",
+                str(odometer),
+                "--date",
+                date,
+            ],
+        )
+
+    result = runner.invoke(cli, ["fuel", "list"])
+
+    assert result.exit_code == 0
+    # neuester Eintrag (11000km, 48L seit 10500km): 48/500*100 = 9.6
+    assert "9.6" in result.output
+    # mittlerer Eintrag (10500km, 45L seit 10000km): 45/500*100 = 9.0
+    assert "9.0" in result.output
+    # aeltester Eintrag hat keinen Vorgaenger-km-Stand
+    assert "?" not in result.output
