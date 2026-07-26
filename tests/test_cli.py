@@ -10,7 +10,7 @@ def runner():
 
 
 def test_trip_add_valid(runner, test_db):
-    """Test: trip add mit gültigen Parametern."""
+    """Test: trip-add mit gültigen Parametern."""
     result = runner.invoke(cli, [
         "trip", "add",
         "--from", "München",
@@ -24,7 +24,7 @@ def test_trip_add_valid(runner, test_db):
 
 
 def test_trip_add_invalid_date(runner, test_db):
-    """Test: trip add mit ungültigem Datum."""
+    """Test: trip-add mit ungültigem Datum."""
     result = runner.invoke(cli, [
         "trip", "add",
         "--from", "München",
@@ -38,7 +38,7 @@ def test_trip_add_invalid_date(runner, test_db):
 
 
 def test_trip_list_empty(runner, test_db):
-    """Test: trip list wenn keine Reisen existieren."""
+    """Test: trip-list wenn keine Reisen existieren."""
     result = runner.invoke(cli, ["trip", "list"])
     
     assert result.exit_code == 0
@@ -46,7 +46,7 @@ def test_trip_list_empty(runner, test_db):
 
 
 def test_trip_list_with_data(runner, test_db):
-    """Test: trip list mit Daten."""
+    """Test: trip-list mit Daten."""
     runner.invoke(cli, [
         "trip", "add",
         "--from", "München",

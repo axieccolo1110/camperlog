@@ -13,7 +13,13 @@ def cli():
     init_db()
 
 
-@cli.command()
+@cli.group()
+def trip():
+    """Verwalte deine Reisen."""
+    pass
+
+
+@trip.command("add")
 @click.option("--from", "origin", required=True, help="Startort")
 @click.option("--to", "destination", required=True, help="Zielort")
 @click.option("--km", type=int, required=True, help="Kilometer")
@@ -23,14 +29,13 @@ def trip_add(origin, destination, km, date):
     try:
         datetime.strptime(date, "%Y-%m-%d")
     except ValueError:
-        console.print("[red]Fehler: Datum muss im Format YYYY-MM-DD sein[/red]")
-        return
+        raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
     
-    trip = add_trip(origin, destination, km, date)
+    trip_obj = add_trip(origin, destination, km, date)
     console.print(f"[green]✓ Reise gespeichert:[/green] {origin} → {destination} ({km} km)")
 
 
-@cli.command()
+@trip.command("list")
 def trip_list():
     """Zeigt alle Reisen an."""
     trips = get_all_trips()
@@ -45,8 +50,8 @@ def trip_list():
     table.add_column("Nach", style="magenta")
     table.add_column("km", style="green", justify="right")
     
-    for trip in trips:
-        table.add_row(trip.date, trip.origin, trip.destination, str(trip.km))
+    for trip_item in trips:
+        table.add_row(trip_item.date, trip_item.origin, trip_item.destination, str(trip_item.km))
     
     console.print(table)
 
