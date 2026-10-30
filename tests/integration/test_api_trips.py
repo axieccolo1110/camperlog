@@ -1,3 +1,5 @@
+import pytest
+
 TRIP = {"origin": "München", "destination": "Berlin", "km": 600, "date": "2026-08-01"}
 
 
@@ -21,6 +23,13 @@ def test_create_trip(api_client):
 def test_create_trip_invalid_date(api_client):
     r = api_client.post("/api/trips", json={**TRIP, "date": "not-a-date"})
     assert r.status_code == 422
+
+
+@pytest.mark.parametrize("km", [0, -5])
+def test_create_trip_rejects_non_positive_km(api_client, km):
+    r = api_client.post("/api/trips", json={**TRIP, "km": km})
+    assert r.status_code == 422
+    assert api_client.get("/api/trips").json() == []
 
 
 def test_list_trips_after_create(api_client):

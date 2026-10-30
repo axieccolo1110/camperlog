@@ -14,6 +14,17 @@ from datetime import datetime
 
 console = Console()
 
+POSITIVE_FLOAT = click.FloatRange(min=0, min_open=True)
+
+
+def _validate_date(ctx, param, value):
+    """Click-Callback: prüft das Datumsformat YYYY-MM-DD."""
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
+    return value
+
 
 @click.group()
 def cli():
@@ -30,15 +41,16 @@ def trip():
 @trip.command("add")
 @click.option("--from", "origin", required=True, help="Startort")
 @click.option("--to", "destination", required=True, help="Zielort")
-@click.option("--km", type=int, required=True, help="Kilometer")
-@click.option("--date", type=str, required=True, help="Datum (YYYY-MM-DD)")
+@click.option("--km", type=click.IntRange(min=1), required=True, help="Kilometer")
+@click.option(
+    "--date",
+    type=str,
+    required=True,
+    callback=_validate_date,
+    help="Datum (YYYY-MM-DD)",
+)
 def trip_add(origin, destination, km, date):
     """Fügt eine neue Reise hinzu."""
-    try:
-        datetime.strptime(date, "%Y-%m-%d")
-    except ValueError:
-        raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
-
     add_trip(origin, destination, km, date)
     msg = f"[green]✓ Reise gespeichert:[/green] {origin} → {destination} ({km} km)"
     console.print(msg)
@@ -77,19 +89,22 @@ def fuel():
 
 
 @fuel.command()
-@click.option("--liters", type=float, required=True, help="Getankte Liter")
-@click.option("--price-per-liter", type=float, required=True, help="Preis pro Liter")
-@click.option("--odometer", type=int, required=True, help="Kilometerstand")
-@click.option("--date", type=str, required=True, help="Datum (YYYY-MM-DD)")
+@click.option("--liters", type=POSITIVE_FLOAT, required=True, help="Getankte Liter")
+@click.option(
+    "--price-per-liter", type=POSITIVE_FLOAT, required=True, help="Preis pro Liter"
+)
+@click.option(
+    "--odometer", type=click.IntRange(min=0), required=True, help="Kilometerstand"
+)
+@click.option(
+    "--date",
+    type=str,
+    required=True,
+    callback=_validate_date,
+    help="Datum (YYYY-MM-DD)",
+)
 def add(liters, price_per_liter, odometer, date):
     """Tankfüllung erfassen."""
-    try:
-        datetime.strptime(date, "%Y-%m-%d")
-    except ValueError:
-        msg = "[red]Fehler: Datum muss im Format " "YYYY-MM-DD sein[/red]"
-        console.print(msg)
-        return
-
     entry = add_fuel_entry(date, liters, price_per_liter, odometer)
     console.print(
         f"[green]✓ Tankfüllung gespeichert:[/green] "

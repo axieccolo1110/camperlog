@@ -126,7 +126,80 @@ def test_fuel_add_invalid_date(runner, test_db):
         ],
     )
 
-    assert "Fehler" in result.output or "Format" in result.output
+    assert result.exit_code != 0
+    assert "Format" in result.output
+    assert "Tankfüllung gespeichert" not in result.output
+
+
+@pytest.mark.parametrize("km", ["0", "-5"])
+def test_trip_add_rejects_non_positive_km(runner, test_db, km):
+    """Test: trip-add lehnt km < 1 ab."""
+    result = runner.invoke(
+        cli,
+        [
+            "trip",
+            "add",
+            "--from",
+            "München",
+            "--to",
+            "Berlin",
+            "--km",
+            km,
+            "--date",
+            "2026-08-01",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Reise gespeichert" not in result.output
+
+
+@pytest.mark.parametrize(
+    "option, value",
+    [
+        ("--liters", "0"),
+        ("--liters", "-10"),
+        ("--price-per-liter", "0"),
+        ("--price-per-liter", "-1.5"),
+        ("--odometer", "-1"),
+    ],
+)
+def test_fuel_add_rejects_invalid_numbers(runner, test_db, option, value):
+    """Test: fuel-add lehnt nicht-positive Mengen/Preise und negative km ab."""
+    args = {
+        "--liters": "50.5",
+        "--price-per-liter": "1.85",
+        "--odometer": "45000",
+        "--date": "2026-08-01",
+    }
+    args[option] = value
+    result = runner.invoke(
+        cli, ["fuel", "add", *[x for kv in args.items() for x in kv]]
+    )
+
+    assert result.exit_code != 0
+    assert "Tankfüllung gespeichert" not in result.output
+
+
+def test_fuel_add_accepts_zero_odometer(runner, test_db):
+    """Test: km-Stand 0 ist gültig (Neufahrzeug)."""
+    result = runner.invoke(
+        cli,
+        [
+            "fuel",
+            "add",
+            "--liters",
+            "50.5",
+            "--price-per-liter",
+            "1.85",
+            "--odometer",
+            "0",
+            "--date",
+            "2026-08-01",
+        ],
+    )
+
+    assert result.exit_code == 0
 
 
 def test_fuel_list_empty(runner, test_db):
