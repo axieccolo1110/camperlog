@@ -364,3 +364,18 @@ def test_trip_page_offers_edit_and_delete(api_client):
     assert 'class="btn btn-secondary btn-small edit-stop"' in html
     assert 'class="btn btn-danger btn-small delete-stop"' in html
     assert 'data-place="Verona"' in html
+
+
+def test_trip_page_keeps_adding_and_editing_stops_in_separate_forms(api_client):
+    """Regression: one form that switched into edit mode overwrote the edited
+    stop when the user meant to add a new one."""
+    trip_id = _trip_id(api_client)
+    _stop_id(api_client, trip_id)
+
+    html = api_client.get(f"/trips/{trip_id}").text
+
+    assert 'id="stop-form"' in html  # always there, only ever creates
+    assert 'id="stop-edit-form"' in html  # only edits
+    assert 'id="stop-edit-card" hidden' in html  # hidden until "Bearbeiten"
+    assert "/api/trips/${TRIP_ID}/stops" in html  # the add form POSTs
+    assert "/api/stops/${editingStopId}" in html  # the edit form PUTs
