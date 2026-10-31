@@ -16,3 +16,8 @@ def validate_date(ctx, param, value) -> dt.date:
         return dt.datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
         raise click.BadParameter("Datum muss im Format YYYY-MM-DD sein")
+
+
+def validate_optional_date(ctx, param, value) -> dt.date | None:
+    """Like validate_date, for options that may be left out."""
+    return None if value is None else validate_date(ctx, param, value)

@@ -5,7 +5,17 @@ import pytest
 from camperlog.db import session_scope
 from camperlog.models import Stop
 from camperlog.services.errors import NotFoundError, ValidationError
-from camperlog.services.trips import add_stop, add_trip, get_trip, list_trips
+from camperlog.services.trips import (
+    add_stop,
+    add_trip,
+    delete_stop,
+    delete_trip,
+    get_stop,
+    get_trip,
+    list_trips,
+    update_stop,
+    update_trip,
+)
 
 START = dt.date(2026, 8, 1)
 END = dt.date(2026, 8, 22)
@@ -190,3 +200,144 @@ def test_stops_of_other_trips_do_not_interfere(session, trip):
     add_stop(session, other.id, START, "other")
 
     assert add_stop(session, trip.id, START, "mine").position == 1
+
+
+# --- editing and deleting trips ----------------------------------------------
+
+
+def test_update_trip_period_and_distance(session, trip):
+    updated = update_trip(
+        session, trip.id, dt.date(2026, 7, 30), dt.date(2026, 9, 1), 900
+    )
+
+    assert (updated.start_date, updated.end_date, updated.distance_km) == (
+        dt.date(2026, 7, 30),
+        dt.date(2026, 9, 1),
+        900,
+    )
+    with session_scope() as other:
+        assert get_trip(other, trip.id).distance_km == 900
+
+
+def test_update_trip_can_remove_the_distance(session):
+    trip = add_trip(session, START, END, 600)
+
+    assert update_trip(session, trip.id, START, END, None).distance_km is None
+
+
+def test_new_period_must_include_all_stops(session, trip):
+    add_stop(session, trip.id, dt.date(2026, 8, 5))
+    add_stop(session, trip.id, dt.date(2026, 8, 20))
+
+    with pytest.raises(ValidationError, match="2026-08-20"):
+        update_trip(session, trip.id, START, dt.date(2026, 8, 10), None)
+
+    unchanged = get_trip(session, trip.id)
+    assert unchanged.end_date == END
+
+
+def test_new_period_may_end_exactly_on_a_stop(session, trip):
+    add_stop(session, trip.id, dt.date(2026, 8, 5))
+    add_stop(session, trip.id, dt.date(2026, 8, 20))
+
+    updated = update_trip(
+        session, trip.id, dt.date(2026, 8, 5), dt.date(2026, 8, 20), 1
+    )
+
+    assert updated.stop_count == 2
+
+
+@pytest.mark.parametrize(
+    "start, end, km, message",
+    [
+        (END, START, None, "Enddatum"),
+        (START, END, 0, "Distanz"),
+    ],
+)
+def test_update_trip_validates_like_add_trip(session, trip, start, end, km, message):
+    with pytest.raises(ValidationError, match=message):
+        update_trip(session, trip.id, start, end, km)
+
+
+def test_update_unknown_trip(session):
+    with pytest.raises(NotFoundError):
+        update_trip(session, 999, START, END, None)
+
+
+def test_delete_trip_removes_its_stops_only(session, trip):
+    other = add_trip(session, START, END)
+    add_stop(session, trip.id, START, "gone")
+    add_stop(session, other.id, START, "stays")
+
+    delete_trip(session, trip.id)
+
+    assert [t.id for t in list_trips(session)] == [other.id]
+    assert [s.place_name for s in session.query(Stop).all()] == ["stays"]
+
+
+def test_delete_unknown_trip(session):
+    with pytest.raises(NotFoundError):
+        delete_trip(session, 999)
+
+
+# --- editing and deleting stops ----------------------------------------------
+
+
+def test_update_stop(session, trip):
+    stop = add_stop(session, trip.id, START, "Verona", 45.4, 10.9)
+
+    updated = update_stop(session, stop.id, dt.date(2026, 8, 3), "Rimini", 44.0, 12.5)
+
+    assert (updated.date, updated.place_name, updated.lat, updated.lon) == (
+        dt.date(2026, 8, 3),
+        "Rimini",
+        44.0,
+        12.5,
+    )
+    assert updated.position == stop.position
+
+
+def test_update_stop_can_remove_place_and_coordinates(session, trip):
+    stop = add_stop(session, trip.id, START, "Verona", 45.4, 10.9)
+
+    updated = update_stop(session, stop.id, START, "  ", None, None)
+
+    assert (updated.place_name, updated.lat, updated.lon) == (None, None, None)
+
+
+def test_update_stop_keeps_the_rules_of_a_new_stop(session, trip):
+    stop = add_stop(session, trip.id, START, "Verona")
+
+    with pytest.raises(ValidationError, match="Zeitraum der Reise"):
+        update_stop(session, stop.id, END + dt.timedelta(days=1), "Verona", None, None)
+    with pytest.raises(ValidationError, match="Breite und Länge"):
+        update_stop(session, stop.id, START, "Verona", 45.4, None)
+
+    assert get_stop(session, stop.id).date == START
+
+
+def test_update_stop_reorders_by_date(session, trip):
+    early = add_stop(session, trip.id, dt.date(2026, 8, 2), "early")
+    add_stop(session, trip.id, dt.date(2026, 8, 9), "late")
+
+    update_stop(session, early.id, dt.date(2026, 8, 15), "early", None, None)
+
+    assert [s.place_name for s in get_trip(session, trip.id).stops] == ["late", "early"]
+
+
+def test_delete_stop(session, trip):
+    keep = add_stop(session, trip.id, START, "keep")
+    gone = add_stop(session, trip.id, START, "gone")
+
+    delete_stop(session, gone.id)
+
+    assert [s.id for s in get_trip(session, trip.id).stops] == [keep.id]
+
+
+def test_unknown_stop(session):
+    with pytest.raises(NotFoundError, match="999"):
+        get_stop(session, 999)
+    with pytest.raises(NotFoundError):
+        update_stop(session, 999, START, None, None, None)
+    with pytest.raises(NotFoundError):
+        delete_stop(session, 999)

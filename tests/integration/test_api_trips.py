@@ -223,3 +223,144 @@ def test_three_week_trip_with_six_stops_via_the_api(api_client):
     assert body["stop_count"] == 6
     assert [s["date"] for s in body["stops"]] == [s[0] for s in stops]
     assert api_client.get("/api/trips").json()[0]["stop_count"] == 6
+
+
+# --- editing and deleting ----------------------------------------------------
+
+
+def _stop_id(api_client, trip_id, day="2026-08-10", place="Verona"):
+    r = api_client.post(
+        f"/api/trips/{trip_id}/stops", json={"date": day, "place_name": place}
+    )
+    return r.json()["id"]
+
+
+def test_update_trip(api_client):
+    trip_id = _trip_id(api_client)
+
+    r = api_client.put(
+        f"/api/trips/{trip_id}",
+        json={"start_date": "2026-07-30", "end_date": "2026-09-01"},
+    )
+
+    assert r.status_code == 200
+    assert r.json()["start_date"] == "2026-07-30"
+    assert r.json()["distance_km"] is None
+    assert api_client.get(f"/api/trips/{trip_id}").json()["end_date"] == "2026-09-01"
+
+
+def test_update_trip_that_excludes_a_stop_is_422(api_client):
+    trip_id = _trip_id(api_client)
+    _stop_id(api_client, trip_id, "2026-08-20")
+
+    r = api_client.put(
+        f"/api/trips/{trip_id}",
+        json={"start_date": "2026-08-01", "end_date": "2026-08-10"},
+    )
+
+    assert r.status_code == 422
+    assert "2026-08-20" in r.json()["detail"]
+    assert api_client.get(f"/api/trips/{trip_id}").json()["end_date"] == "2026-08-22"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"start_date": "2026-08-22", "end_date": "2026-08-01"},
+        {"start_date": "2026-08-01", "end_date": "2026-08-22", "distance_km": 0},
+        {"start_date": "nope", "end_date": "2026-08-22"},
+    ],
+)
+def test_update_trip_rejects_invalid_input(api_client, payload):
+    trip_id = _trip_id(api_client)
+
+    assert api_client.put(f"/api/trips/{trip_id}", json=payload).status_code == 422
+
+
+def test_update_unknown_trip_is_404(api_client):
+    r = api_client.put("/api/trips/999", json=TRIP)
+
+    assert r.status_code == 404
+
+
+def test_delete_trip_removes_its_stops(api_client):
+    trip_id = _trip_id(api_client)
+    _stop_id(api_client, trip_id)
+
+    r = api_client.delete(f"/api/trips/{trip_id}")
+
+    assert r.status_code == 204
+    assert api_client.get(f"/api/trips/{trip_id}").status_code == 404
+    assert api_client.get("/api/trips").json() == []
+
+
+def test_delete_unknown_trip_is_404(api_client):
+    assert api_client.delete("/api/trips/999").status_code == 404
+
+
+def test_update_stop(api_client):
+    trip_id = _trip_id(api_client)
+    stop_id = _stop_id(api_client, trip_id)
+
+    r = api_client.put(
+        f"/api/stops/{stop_id}",
+        json={"date": "2026-08-12", "place_name": "Rimini", "lat": 44.0, "lon": 12.5},
+    )
+
+    assert r.status_code == 200
+    assert r.json()["place_name"] == "Rimini"
+    stops = api_client.get(f"/api/trips/{trip_id}").json()["stops"]
+    assert [(s["date"], s["place_name"]) for s in stops] == [("2026-08-12", "Rimini")]
+
+
+def test_update_stop_outside_the_period_is_422(api_client):
+    trip_id = _trip_id(api_client)
+    stop_id = _stop_id(api_client, trip_id)
+
+    r = api_client.put(f"/api/stops/{stop_id}", json={"date": "2026-09-30"})
+
+    assert r.status_code == 422
+    assert "Zeitraum der Reise" in r.json()["detail"]
+
+
+def test_update_unknown_stop_is_404(api_client):
+    r = api_client.put("/api/stops/999", json={"date": "2026-08-10"})
+
+    assert r.status_code == 404
+
+
+def test_delete_stop(api_client):
+    trip_id = _trip_id(api_client)
+    stop_id = _stop_id(api_client, trip_id)
+
+    r = api_client.delete(f"/api/stops/{stop_id}")
+
+    assert r.status_code == 204
+    assert api_client.get(f"/api/trips/{trip_id}").json()["stops"] == []
+
+
+def test_delete_unknown_stop_is_404(api_client):
+    assert api_client.delete("/api/stops/999").status_code == 404
+
+
+def test_edit_and_delete_routes_need_a_login(anon_client):
+    assert anon_client.put("/api/trips/1", json=TRIP).status_code == 401
+    assert anon_client.delete("/api/trips/1").status_code == 401
+    assert (
+        anon_client.put("/api/stops/1", json={"date": "2026-08-10"}).status_code == 401
+    )
+    assert anon_client.delete("/api/stops/1").status_code == 401
+
+
+def test_trip_page_offers_edit_and_delete(api_client):
+    trip_id = _trip_id(api_client)
+    _stop_id(api_client, trip_id)
+
+    html = api_client.get(f"/trips/{trip_id}").text
+
+    assert 'id="trip-edit-form"' in html
+    assert 'value="2026-08-01"' in html and 'value="2026-08-22"' in html
+    assert 'id="delete-trip"' in html
+    assert 'class="btn btn-secondary btn-small edit-stop"' in html
+    assert 'class="btn btn-danger btn-small delete-stop"' in html
+    assert 'data-place="Verona"' in html

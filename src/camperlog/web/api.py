@@ -2,11 +2,20 @@
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from camperlog.db import Session, get_session
 from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
-from camperlog.services.trips import add_stop, add_trip, get_trip, list_trips
+from camperlog.services.trips import (
+    add_stop,
+    add_trip,
+    delete_stop,
+    delete_trip,
+    get_trip,
+    list_trips,
+    update_stop,
+    update_trip,
+)
 from camperlog.web.auth import require_login
 from camperlog.web.schemas import (
     FuelEntryCreate,
@@ -37,6 +46,26 @@ def create_trip(body: TripCreate, session: Session = Depends(get_session)):
     return TripRead.model_validate(trip)
 
 
+@router.put("/trips/{trip_id}", response_model=TripRead)
+def replace_trip(
+    trip_id: int, body: TripCreate, session: Session = Depends(get_session)
+):
+    trip = update_trip(
+        session,
+        trip_id,
+        dt.date.fromisoformat(body.start_date),
+        dt.date.fromisoformat(body.end_date),
+        body.distance_km,
+    )
+    return TripRead.model_validate(trip)
+
+
+@router.delete("/trips/{trip_id}", status_code=204)
+def remove_trip(trip_id: int, session: Session = Depends(get_session)):
+    delete_trip(session, trip_id)
+    return Response(status_code=204)
+
+
 @router.get("/trips/{trip_id}", response_model=TripDetailRead)
 def get_trip_detail(trip_id: int, session: Session = Depends(get_session)):
     return TripDetailRead.model_validate(get_trip(session, trip_id))
@@ -55,6 +84,27 @@ def create_stop(
         body.lon,
     )
     return StopRead.model_validate(stop)
+
+
+@router.put("/stops/{stop_id}", response_model=StopRead)
+def replace_stop(
+    stop_id: int, body: StopCreate, session: Session = Depends(get_session)
+):
+    stop = update_stop(
+        session,
+        stop_id,
+        dt.date.fromisoformat(body.date),
+        body.place_name,
+        body.lat,
+        body.lon,
+    )
+    return StopRead.model_validate(stop)
+
+
+@router.delete("/stops/{stop_id}", status_code=204)
+def remove_stop(stop_id: int, session: Session = Depends(get_session)):
+    delete_stop(session, stop_id)
+    return Response(status_code=204)
 
 
 @router.get("/fuel", response_model=list[FuelEntryRead])

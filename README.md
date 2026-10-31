@@ -17,6 +17,7 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 - ✅ Overview of all trips (period, number of stops, distance) in a formatted table
 - ✅ Chronological sorting (newest first)
 - ✅ Add stops to a trip (date within the trip, optional place name and coordinates)
+- ✅ Edit and delete trips and stops (CLI and web, deleting asks for confirmation)
 
 ### Refuelings (fuel logging)
 - ✅ Document refuelings with costs
@@ -110,6 +111,16 @@ The date must lie within the period of the trip (both ends included). Coordinate
 ```bash
 camperlog trip show 1
 ```
+
+#### Edit and delete
+```bash
+camperlog trip edit 1 --end 2026-08-20          # also --start, --km, --clear-km
+camperlog trip stop edit 3 --place Rimini        # also --date, --lat/--lon, --clear-coordinates
+camperlog trip stop delete 3                     # asks first, --yes skips the question
+camperlog trip delete 1                          # deletes the trip with its stops
+```
+
+The number of a stop (`3` above) is shown by `camperlog trip show`. A new period of a trip must include all its stops, and the date of an edited stop must stay within the trip. In the web, the trip page (click a trip on the dashboard) offers the same with buttons and a confirmation dialog.
 
 #### Show all trips
 ```bash

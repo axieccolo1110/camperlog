@@ -351,3 +351,167 @@ def test_three_week_trip_with_six_stops_via_the_cli(runner, test_db):
     assert shown.exit_code == 0
     for day in [*days, "2026-08-21"]:
         assert day in shown.output
+
+
+# --- editing and deleting ----------------------------------------------------
+
+
+@pytest.fixture
+def trip_with_stop(runner, trip_id):
+    runner.invoke(
+        cli,
+        ["trip", "stop", "add", trip_id, "--date", "2026-08-05", "--place", "Verona",
+         "--lat", "45.4", "--lon", "10.9"],
+    )  # fmt: skip
+    return trip_id
+
+
+def test_trip_edit_changes_only_the_given_fields(runner, trip_with_stop):
+    result = runner.invoke(cli, ["trip", "edit", "1", "--end", "2026-08-30"])
+
+    assert result.exit_code == 0
+    shown = runner.invoke(cli, ["trip", "show", "1"])
+    assert "2026-08-01" in shown.output and "2026-08-30" in shown.output
+    assert "2500 km" in shown.output
+
+
+def test_trip_edit_distance_and_clear_it(runner, trip_with_stop):
+    runner.invoke(cli, ["trip", "edit", "1", "--km", "3000"])
+    assert "3000 km" in runner.invoke(cli, ["trip", "show", "1"]).output
+
+    runner.invoke(cli, ["trip", "edit", "1", "--clear-km"])
+
+    assert " km" not in runner.invoke(cli, ["trip", "show", "1"]).output
+
+
+def test_trip_edit_rejects_a_period_that_excludes_stops(runner, trip_with_stop):
+    result = runner.invoke(cli, ["trip", "edit", "1", "--end", "2026-08-03"])
+
+    assert result.exit_code != 0
+    assert "Stopps einschließen" in result.output
+    assert "2026-08-05" in result.output
+    assert "2026-08-22" in runner.invoke(cli, ["trip", "show", "1"]).output
+
+
+def test_trip_edit_needs_something_to_change(runner, trip_id):
+    result = runner.invoke(cli, ["trip", "edit", "1"])
+
+    assert result.exit_code != 0
+    assert "Nichts zu ändern" in result.output
+
+
+def test_trip_edit_km_and_clear_km_exclude_each_other(runner, trip_id):
+    result = runner.invoke(cli, ["trip", "edit", "1", "--km", "5", "--clear-km"])
+
+    assert result.exit_code != 0
+
+
+def test_trip_edit_unknown_trip(runner, test_db):
+    result = runner.invoke(cli, ["trip", "edit", "42", "--km", "5"])
+
+    assert result.exit_code != 0
+    assert "42" in result.output
+
+
+def test_trip_delete_with_yes_removes_trip_and_stops(runner, trip_with_stop):
+    result = runner.invoke(cli, ["trip", "delete", "1", "--yes"])
+
+    assert result.exit_code == 0
+    assert "gelöscht" in result.output
+    assert "Keine Reisen" in runner.invoke(cli, ["trip", "list"]).output
+
+
+def test_trip_delete_asks_and_deletes_on_yes(runner, trip_with_stop):
+    result = runner.invoke(cli, ["trip", "delete", "1"], input="y\n")
+
+    assert result.exit_code == 0
+    assert "1 Stopp wirklich löschen" in result.output
+    assert "Keine Reisen" in runner.invoke(cli, ["trip", "list"]).output
+
+
+@pytest.mark.parametrize("answer", ["n\n", "\n"])
+def test_trip_delete_keeps_everything_unless_confirmed(runner, trip_with_stop, answer):
+    result = runner.invoke(cli, ["trip", "delete", "1"], input=answer)
+
+    assert result.exit_code != 0
+    assert "Nichts wurde gelöscht" in result.output
+    assert "Verona" in runner.invoke(cli, ["trip", "show", "1"]).output
+
+
+def test_trip_delete_unknown_trip(runner, test_db):
+    assert runner.invoke(cli, ["trip", "delete", "42", "--yes"]).exit_code != 0
+
+
+def test_trip_show_lists_stop_numbers(runner, trip_with_stop):
+    shown = runner.invoke(cli, ["trip", "show", "1"])
+
+    assert "Nr." in shown.output
+
+
+def test_stop_edit_changes_only_the_given_fields(runner, trip_with_stop):
+    result = runner.invoke(cli, ["trip", "stop", "edit", "1", "--place", "Rimini"])
+
+    assert result.exit_code == 0
+    shown = runner.invoke(cli, ["trip", "show", "1"])
+    assert "Rimini" in shown.output
+    assert "2026-08-05" in shown.output
+    assert "45.4" in shown.output
+
+
+def test_stop_edit_date_and_one_coordinate(runner, trip_with_stop):
+    result = runner.invoke(
+        cli, ["trip", "stop", "edit", "1", "--date", "2026-08-07", "--lat", "46.0"]
+    )
+
+    assert result.exit_code == 0
+    shown = runner.invoke(cli, ["trip", "show", "1"]).output
+    assert "2026-08-07" in shown and "46.0, 10.9" in shown
+
+
+def test_stop_edit_removes_place_and_coordinates(runner, trip_with_stop):
+    runner.invoke(
+        cli, ["trip", "stop", "edit", "1", "--place", "", "--clear-coordinates"]
+    )
+
+    shown = runner.invoke(cli, ["trip", "show", "1"]).output
+    assert "Verona" not in shown and "45.4" not in shown
+
+
+def test_stop_edit_rejects_a_date_outside_the_trip(runner, trip_with_stop):
+    result = runner.invoke(cli, ["trip", "stop", "edit", "1", "--date", "2026-09-30"])
+
+    assert result.exit_code != 0
+    assert "Zeitraum der Reise" in result.output
+
+
+def test_stop_edit_needs_something_to_change(runner, trip_with_stop):
+    assert runner.invoke(cli, ["trip", "stop", "edit", "1"]).exit_code != 0
+
+
+def test_stop_edit_unknown_stop(runner, test_db):
+    assert (
+        runner.invoke(cli, ["trip", "stop", "edit", "42", "--place", "x"]).exit_code
+        != 0
+    )
+
+
+def test_stop_delete_asks_first(runner, trip_with_stop):
+    declined = runner.invoke(cli, ["trip", "stop", "delete", "1"], input="n\n")
+    assert declined.exit_code != 0
+    assert "Verona" in runner.invoke(cli, ["trip", "show", "1"]).output
+
+    confirmed = runner.invoke(cli, ["trip", "stop", "delete", "1"], input="y\n")
+
+    assert confirmed.exit_code == 0
+    assert "Keine Stopps" in runner.invoke(cli, ["trip", "show", "1"]).output
+
+
+def test_stop_delete_with_yes(runner, trip_with_stop):
+    result = runner.invoke(cli, ["trip", "stop", "delete", "1", "--yes"])
+
+    assert result.exit_code == 0
+    assert "Keine Stopps" in runner.invoke(cli, ["trip", "show", "1"]).output
+
+
+def test_stop_delete_unknown_stop(runner, test_db):
+    assert runner.invoke(cli, ["trip", "stop", "delete", "42", "--yes"]).exit_code != 0
