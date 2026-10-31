@@ -1,12 +1,12 @@
 from datetime import date as _date
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class TripCreate(BaseModel):
     origin: str
     destination: str
-    km: int
+    km: int = Field(ge=1)
     date: str
 
     @field_validator("date")
@@ -26,9 +26,9 @@ class TripRead(BaseModel):
 
 class FuelEntryCreate(BaseModel):
     date: str
-    liters: float
-    price_per_liter: float
-    odometer: int
+    liters: float = Field(gt=0)
+    price_per_liter: float = Field(gt=0)
+    odometer: int = Field(ge=0)
 
     @field_validator("date")
     @classmethod

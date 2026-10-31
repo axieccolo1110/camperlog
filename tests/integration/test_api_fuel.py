@@ -1,3 +1,5 @@
+import pytest
+
 ENTRY = {
     "date": "2026-08-01",
     "liters": 45.5,
@@ -26,6 +28,27 @@ def test_create_fuel_entry(api_client):
 def test_create_fuel_entry_invalid_date(api_client):
     r = api_client.post("/api/fuel", json={**ENTRY, "date": "01.08.2026"})
     assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("liters", 0),
+        ("liters", -10),
+        ("price_per_liter", 0),
+        ("price_per_liter", -1.5),
+        ("odometer", -1),
+    ],
+)
+def test_create_fuel_entry_rejects_invalid_numbers(api_client, field, value):
+    r = api_client.post("/api/fuel", json={**ENTRY, field: value})
+    assert r.status_code == 422
+    assert api_client.get("/api/fuel").json() == []
+
+
+def test_create_fuel_entry_accepts_zero_odometer(api_client):
+    r = api_client.post("/api/fuel", json={**ENTRY, "odometer": 0})
+    assert r.status_code == 201
 
 
 def test_list_fuel_after_create(api_client):
