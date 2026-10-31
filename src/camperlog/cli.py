@@ -150,7 +150,7 @@ def serve(host, port, reload):
     """Starte den Web-Server (FastAPI + Dashboard)."""
     import uvicorn
 
-    uvicorn.run("camperlog.web.api:app", host=host, port=port, reload=reload)
+    uvicorn.run("camperlog.web.app:app", host=host, port=port, reload=reload)
 
 
 if __name__ == "__main__":
