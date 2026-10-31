@@ -14,7 +14,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -38,6 +38,12 @@ def get_database_url() -> str:
     return f"sqlite:///{sqlite_path}"
 
 
+def _enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
 def get_engine() -> Engine:
     """Return the engine for the current database URL, creating it lazily.
 
@@ -50,6 +56,9 @@ def get_engine() -> Engine:
         engine = _engines.get(url)
         if engine is None:
             engine = create_engine(url)
+            if engine.dialect.name == "sqlite":
+                # SQLite ignores foreign keys unless asked per connection.
+                event.listen(engine, "connect", _enable_sqlite_foreign_keys)
             _engines[url] = engine
         return engine
 

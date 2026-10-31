@@ -22,10 +22,9 @@ def get_trips(session: Session = Depends(get_session)):
 def create_trip(body: TripCreate, session: Session = Depends(get_session)):
     trip = add_trip(
         session,
-        body.origin,
-        body.destination,
-        body.km,
-        dt.date.fromisoformat(body.date),
+        dt.date.fromisoformat(body.start_date),
+        dt.date.fromisoformat(body.end_date),
+        body.distance_km,
     )
     return TripRead.model_validate(trip)
 

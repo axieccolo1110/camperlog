@@ -9,12 +9,11 @@ def _iso_date(value):
 
 
 class TripCreate(BaseModel):
-    origin: str
-    destination: str
-    km: int = Field(ge=1)
-    date: str
+    start_date: str
+    end_date: str
+    distance_km: int | None = Field(default=None, ge=1)
 
-    @field_validator("date")
+    @field_validator("start_date", "end_date")
     @classmethod
     def validate_date(cls, v: str) -> str:
         _date.fromisoformat(v)
@@ -25,12 +24,12 @@ class TripRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    origin: str
-    destination: str
-    km: int
-    date: str
+    start_date: str
+    end_date: str
+    distance_km: int | None
+    stop_count: int
 
-    _date_to_iso = field_validator("date", mode="before")(_iso_date)
+    _dates_to_iso = field_validator("start_date", "end_date", mode="before")(_iso_date)
 
 
 class FuelEntryCreate(BaseModel):

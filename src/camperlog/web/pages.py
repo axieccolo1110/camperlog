@@ -18,7 +18,7 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
     trips = list_trips(session)
     fuel = list_fuel_entries(session)
 
-    total_km = sum(t.km for t in trips)
+    total_km = sum(t.distance_km or 0 for t in trips)
     total_fuel_cost = round(sum(e.total_cost for e in fuel), 2)
 
     fuel_chrono = sorted(fuel, key=lambda e: e.date)

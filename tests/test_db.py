@@ -42,13 +42,13 @@ def test_default_database_is_local_sqlite_file(tmp_path, monkeypatch):
     assert (tmp_path / "data").is_dir()
 
 
-def test_upgrade_creates_the_baseline_schema(fresh_db):
+def test_upgrade_creates_the_current_schema(fresh_db):
     db.upgrade_to_head()
 
     inspector = inspect(db.get_engine())
-    assert set(inspector.get_table_names()) >= {"trips", "fuel_entries"}
+    assert set(inspector.get_table_names()) >= {"trips", "stops", "fuel_entries"}
     trip_columns = {c["name"] for c in inspector.get_columns("trips")}
-    assert trip_columns == {"id", "origin", "destination", "km", "date"}
+    assert trip_columns == {"id", "start_date", "end_date", "distance_km"}
     fuel_columns = {c["name"] for c in inspector.get_columns("fuel_entries")}
     assert fuel_columns == {
         "id",
@@ -64,7 +64,7 @@ def test_upgrade_creates_the_baseline_schema(fresh_db):
 def test_upgrade_twice_is_harmless(fresh_db):
     db.upgrade_to_head()
     with session_scope() as session:
-        add_trip(session, "München", "Berlin", 600, dt.date(2026, 8, 1))
+        add_trip(session, dt.date(2026, 8, 1), dt.date(2026, 8, 22), 600)
 
     db.upgrade_to_head()
 
@@ -82,11 +82,29 @@ def test_migrated_database_is_current(fresh_db):
     db.require_current_schema()
 
 
+LEGACY_SCHEMA = """
+CREATE TABLE trips (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    origin VARCHAR NOT NULL,
+    destination VARCHAR NOT NULL,
+    km INTEGER NOT NULL,
+    date DATE NOT NULL
+)
+"""
+
+
 def test_existing_production_database_can_be_stamped_without_data_loss(fresh_db):
-    """Databases made by the former create_all get stamped, not recreated."""
-    engine = db.get_engine()
-    Base.metadata.create_all(engine)  # how production databases were created
-    with engine.begin() as connection:
+    """A database made by the former create_all is stamped, then migrated."""
+    with db.get_engine().begin() as connection:
+        connection.execute(text(LEGACY_SCHEMA))
+        connection.execute(
+            text(
+                "CREATE TABLE fuel_entries (id INTEGER NOT NULL PRIMARY KEY "
+                "AUTOINCREMENT, date DATE NOT NULL, liters FLOAT NOT NULL, "
+                "price_per_liter FLOAT NOT NULL, odometer INTEGER NOT NULL, "
+                "total_cost FLOAT NOT NULL)"
+            )
+        )
         connection.execute(
             text(
                 "INSERT INTO trips (origin, destination, km, date) "
@@ -97,14 +115,25 @@ def test_existing_production_database_can_be_stamped_without_data_loss(fresh_db)
         db.require_current_schema()
 
     command.stamp(db.alembic_config(), "0001_baseline")
+    db.upgrade_to_head()
 
     db.require_current_schema()
-    db.upgrade_to_head()
     with session_scope() as session:
-        trips = list_trips(session)
-        assert [(t.origin, t.destination, t.km) for t in trips] == [
-            ("München", "Berlin", 600)
-        ]
+        [trip] = list_trips(session)
+        assert (trip.start_date, trip.end_date, trip.distance_km) == (
+            dt.date(2026, 8, 1),
+            dt.date(2026, 8, 1),
+            600,
+        )
+        assert [s.place_name for s in trip.stops] == ["München", "Berlin"]
+
+
+def test_sqlite_foreign_keys_are_on_after_a_migration(fresh_db):
+    """Migrations switch them off temporarily and must switch them back on."""
+    db.upgrade_to_head()
+
+    with db.get_engine().connect() as connection:
+        assert connection.execute(text("PRAGMA foreign_keys")).scalar() == 1
 
 
 def test_orm_tables_match_the_migrated_schema(fresh_db):

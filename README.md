@@ -13,9 +13,10 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 ## 🎯 Features
 
 ### Trip management (trip tracking)
-- ✅ Record new trips (from → to, kilometers, date)
-- ✅ Overview of all trips in a formatted table
+- ✅ Record trips with a start and an end date and an optional distance
+- ✅ Overview of all trips (period, number of stops, distance) in a formatted table
 - ✅ Chronological sorting (newest first)
+- ✅ Every trip has stops (recording stops by hand follows in the next steps)
 
 ### Refuelings (fuel logging)
 - ✅ Document refuelings with costs
@@ -89,12 +90,14 @@ camperlog --help
 
 #### Record a new trip
 ```bash
-camperlog trip add --from München --to Berlin --km 600 --date 2026-07-26
+camperlog trip add --start 2026-07-26 --end 2026-08-16 --km 2500
 ```
+
+`--km` (the distance) is optional. The end must not lie before the start.
 
 Output:
 ```
-✓ Reise gespeichert: München → Berlin (600 km)
+✓ Reise gespeichert: 2026-07-26 – 2026-08-16 (2500 km)
 ```
 
 #### Show all trips
@@ -105,11 +108,11 @@ camperlog trip list
 Output:
 ```
 📍 Alle Reisen
-┏━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━┓
-┃ Datum      ┃ Von    ┃ Nach   ┃ km ┃
-┡━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━┩
-│ 2026-07-26 │ München│ Berlin │600 │
-└────────────┴────────┴────────┴────┘
+┏━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━┓
+┃ Von        ┃ Bis        ┃ Stopps ┃   km ┃
+┡━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━┩
+│ 2026-07-26 │ 2026-08-16 │      0 │ 2500 │
+└────────────┴────────────┴────────┴──────┘
 ```
 
 ### Managing refuelings
@@ -173,12 +176,26 @@ On Railway, set both variables under *Variables*. The start command runs `alembi
 ```sql
 CREATE TABLE trips (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    origin TEXT NOT NULL,
-    destination TEXT NOT NULL,
-    km INTEGER NOT NULL,
-    date TEXT NOT NULL
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    distance_km INTEGER            -- optional, entered by hand
 )
 ```
+
+### Table: `stops`
+```sql
+CREATE TABLE stops (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,     -- order of entry; stops sort by date, then position
+    date DATE NOT NULL,
+    place_name TEXT,
+    lat FLOAT,
+    lon FLOAT
+)
+```
+
+Trips created before the realignment (one drive with origin, destination, km and date) are migrated automatically: each becomes a trip with start = end = the old date, the old km as distance and two stops (place names = old origin and destination).
 
 ### Table: `fuel_entries`
 ```sql
@@ -192,7 +209,7 @@ CREATE TABLE fuel_entries (
 )
 ```
 
-**Location:** `data/camperlog.db` (relative to the project root). The tables are created by the Alembic baseline revision `0001_baseline`.
+**Location:** `data/camperlog.db` (relative to the project root). The tables are created by the Alembic revisions in `migrations/versions/`.
 
 ---
 

@@ -9,23 +9,21 @@ def runner():
     return CliRunner()
 
 
+TRIP_ARGS = ["trip", "add", "--start", "2026-08-01", "--end", "2026-08-22"]
+
+
 def test_trip_add_valid(runner, test_db):
-    """trip add with valid parameters."""
-    result = runner.invoke(
-        cli,
-        [
-            "trip",
-            "add",
-            "--from",
-            "München",
-            "--to",
-            "Berlin",
-            "--km",
-            "600",
-            "--date",
-            "2026-08-01",
-        ],
-    )
+    """trip add with a period and a distance."""
+    result = runner.invoke(cli, [*TRIP_ARGS, "--km", "600"])
+
+    assert result.exit_code == 0
+    assert "Reise gespeichert" in result.output
+    assert "2026-08-01" in result.output and "2026-08-22" in result.output
+
+
+def test_trip_add_without_distance(runner, test_db):
+    """The distance is optional."""
+    result = runner.invoke(cli, TRIP_ARGS)
 
     assert result.exit_code == 0
     assert "Reise gespeichert" in result.output
@@ -34,23 +32,41 @@ def test_trip_add_valid(runner, test_db):
 def test_trip_add_invalid_date(runner, test_db):
     """trip add with an invalid date."""
     result = runner.invoke(
-        cli,
-        [
-            "trip",
-            "add",
-            "--from",
-            "München",
-            "--to",
-            "Berlin",
-            "--km",
-            "600",
-            "--date",
-            "invalid-date",
-        ],
+        cli, ["trip", "add", "--start", "invalid-date", "--end", "2026-08-22"]
     )
 
     assert result.exit_code != 0
     assert "Fehler" in result.output or "Format" in result.output
+
+
+def test_trip_add_rejects_end_before_start(runner, test_db):
+    """The end must not lie before the start."""
+    result = runner.invoke(
+        cli, ["trip", "add", "--start", "2026-08-22", "--end", "2026-08-01"]
+    )
+
+    assert result.exit_code != 0
+    assert "Enddatum" in result.output
+    assert "Keine Reisen" in runner.invoke(cli, ["trip", "list"]).output
+
+
+def test_trip_add_accepts_a_one_day_trip(runner, test_db):
+    result = runner.invoke(
+        cli, ["trip", "add", "--start", "2026-08-01", "--end", "2026-08-01"]
+    )
+
+    assert result.exit_code == 0
+
+
+def test_trip_add_accepts_date_without_leading_zeros(runner, test_db):
+    """strptime accepts 2026-8-1, so the stored date must not crash on it."""
+    result = runner.invoke(
+        cli, ["trip", "add", "--start", "2026-8-1", "--end", "2026-8-22"]
+    )
+
+    assert result.exit_code == 0
+    listing = runner.invoke(cli, ["trip", "list"])
+    assert "2026-08-01" in listing.output
 
 
 def test_trip_list_empty(runner, test_db):
@@ -61,29 +77,17 @@ def test_trip_list_empty(runner, test_db):
     assert "Keine Reisen" in result.output
 
 
-def test_trip_list_with_data(runner, test_db):
+def test_trip_list_shows_period_stop_count_and_distance(runner, test_db):
     """trip list with data."""
-    runner.invoke(
-        cli,
-        [
-            "trip",
-            "add",
-            "--from",
-            "München",
-            "--to",
-            "Berlin",
-            "--km",
-            "600",
-            "--date",
-            "2026-08-01",
-        ],
-    )
+    runner.invoke(cli, [*TRIP_ARGS, "--km", "600"])
 
     result = runner.invoke(cli, ["trip", "list"])
 
     assert result.exit_code == 0
-    assert "München" in result.output
-    assert "Berlin" in result.output
+    assert "2026-08-01" in result.output
+    assert "2026-08-22" in result.output
+    assert "600" in result.output
+    assert "Stopps" in result.output
 
 
 def test_fuel_add_valid(runner, test_db):
@@ -134,24 +138,12 @@ def test_fuel_add_invalid_date(runner, test_db):
 @pytest.mark.parametrize("km", ["0", "-5"])
 def test_trip_add_rejects_non_positive_km(runner, test_db, km):
     """trip add rejects km < 1."""
-    result = runner.invoke(
-        cli,
-        [
-            "trip",
-            "add",
-            "--from",
-            "München",
-            "--to",
-            "Berlin",
-            "--km",
-            km,
-            "--date",
-            "2026-08-01",
-        ],
-    )
+    result = runner.invoke(cli, [*TRIP_ARGS, "--km", km])
 
     assert result.exit_code != 0
+    assert "--km" in result.output
     assert "Reise gespeichert" not in result.output
+    assert "Keine Reisen" in runner.invoke(cli, ["trip", "list"]).output
 
 
 @pytest.mark.parametrize(
@@ -260,32 +252,9 @@ def test_fuel_list_consumption_calculation(runner, test_db):
     result = runner.invoke(cli, ["fuel", "list"])
 
     assert result.exit_code == 0
-    # neuester Eintrag (11000km, 48L seit 10500km): 48/500*100 = 9.6
+    # newest entry (11000km, 48L since 10500km): 48/500*100 = 9.6
     assert "9.6" in result.output
-    # mittlerer Eintrag (10500km, 45L seit 10000km): 45/500*100 = 9.0
+    # middle entry (10500km, 45L since 10000km): 45/500*100 = 9.0
     assert "9.0" in result.output
-    # aeltester Eintrag hat keinen Vorgaenger-km-Stand
+    # the oldest entry has no previous odometer reading
     assert "?" not in result.output
-
-
-def test_trip_add_accepts_date_without_leading_zeros(runner, test_db):
-    """strptime accepts 2026-8-1, so the stored date must not crash on it."""
-    result = runner.invoke(
-        cli,
-        [
-            "trip",
-            "add",
-            "--from",
-            "München",
-            "--to",
-            "Berlin",
-            "--km",
-            "600",
-            "--date",
-            "2026-8-1",
-        ],
-    )
-
-    assert result.exit_code == 0
-    listing = runner.invoke(cli, ["trip", "list"])
-    assert "2026-08-01" in listing.output
