@@ -1,29 +1,31 @@
 # CamperLog
 
-Persönliches Tool zum Protokollieren von Camper-/Van-Reisen, Tankvorgängen und besuchten Orten.
+Personal tool for logging camper/van trips, refuelings and visited places.
+
+English is the leading language of this repository. The German term in parentheses is what users see in the UI.
 
 ## Language
 
-**Trip**:
-Eine komplette Reise über einen Zeitraum (Start- bis Enddatum), bestehend aus einer geordneten Liste von Stopps.
-_Avoid_: Fahrt (wenn eine einzelne Etappe gemeint ist, siehe Stopp)
+**Trip** (Reise):
+A complete journey over a period (start to end date), consisting of an ordered list of stops.
+_Avoid_: Drive, ride (when a single leg is meant, see Stop)
 
-**Stopp**:
-Eine Station innerhalb eines Trips mit eigenem Datum. Kann optional auf einen Stellplatz verweisen und übernimmt dann dessen Ort; ein freistehender Stopp ohne Stellplatz-Referenz ist erlaubt (z.B. spontane Übernachtung ohne Eintrag) und hat einen optionalen eigenen Ortsnamen und optionale Koordinaten.
-_Avoid_: Station, Zwischenstopp
+**Stop** (Stopp):
+A station within a trip with its own date. It can optionally reference a campsite and then takes over its location. A free-standing stop without a campsite reference is allowed (e.g. a spontaneous overnight stay without an entry) and has an optional place name of its own and optional coordinates.
+_Avoid_: Station, waypoint, layover
 
-**Stellplatz**:
-Ein eigenständiger, von einem konkreten Trip unabhängiger Ort mit Name, Koordinaten, Status (besucht/vorgemerkt), Freitext-Notizen, ein paar festen Flags (z.B. Spielplatz vorhanden, Haustiere erlaubt) und optionalem externen Link (z.B. Park4Night). Kann null, einem oder mehreren Stopps zugeordnet werden. Der Status wird manuell gesetzt, wird aber automatisch „besucht“, sobald ein vergangener Stopp auf den Stellplatz verweist.
-_Avoid_: Campingplatz (Stellplatz ist der kanonische Begriff für beide)
+**Campsite** (Stellplatz):
+A standalone place, independent of any specific trip, with a name, coordinates, a status (visited/bookmarked), free-text notes, a few fixed flags (e.g. playground available, pets allowed) and an optional external link (e.g. Park4Night). It can be referenced by zero, one or several stops. The status is set manually but becomes "visited" automatically as soon as a past stop references the campsite. Covers both the German _Stellplatz_ (parking spot for campers) and _Campingplatz_ (full campground).
+_Avoid_: Campground, pitch, spot (as separate concepts)
 
-**Ausgabe**:
-Ein Geldbetrag mit Datum und Kategorie. Es gibt vorgegebene Kategorien (z.B. Sprit, Stellplatzgebühr, Fähre/Maut, Reparatur/Wartung, Lebensmittel, Freizeit, Sonstiges), weitere kann der Nutzer selbst anlegen und umbenennen; Sprit ist fest und weder umbenennbar noch löschbar. Eine Ausgabe gehört optional zu einem Trip; liegt ihr Datum im Zeitraum eines Trips, wird diese Zuordnung vorgeschlagen, ist aber änderbar (z.B. vorab gebuchte Fähre gehört dazu, eine während der Reise abgebuchte Versicherung nicht). Ein Tankvorgang ist eine Ausgabe der Kategorie Sprit mit zusätzlich Litern, Preis pro Liter und Kilometerstand; daraus wird der Verbrauch berechnet.
-_Avoid_: Kosten (als Objekt), Expense, FuelEntry (als eigenständiger Begriff)
+**Expense** (Ausgabe):
+An amount of money with a date and a category. There are predefined categories (e.g. Fuel, Campsite fee, Ferry/Toll, Repair/Maintenance, Groceries, Leisure, Other); the user can add and rename further ones. Fuel is fixed and can be neither renamed nor deleted. An expense optionally belongs to a trip. If its date falls within a trip's period, that trip is suggested, but the assignment can be changed (e.g. a ferry booked in advance belongs to the trip, an insurance fee debited during the trip does not). A refueling is an expense in the category Fuel with additionally liters, price per liter and odometer reading; the consumption is calculated from these.
+_Avoid_: Cost (as an object), FuelEntry (as a standalone concept)
 
-**Tankvorgang**:
-Eine Ausgabe der Kategorie Sprit (siehe Ausgabe).
-_Avoid_: Tankeintrag, Fuel
+**Refueling** (Tankvorgang):
+An expense in the category Fuel (see Expense).
+_Avoid_: Fuel entry, fill-up (as a separate object)
 
-**Share-Link**:
-Ein Link, über den ein einzelner Trip oder Stellplatz für Dritte nur lesbar sichtbar ist. Ausgaben sind darüber nie sichtbar. Der Nutzer kann einen Share-Link jederzeit deaktivieren; er läuft nicht von selbst ab.
-_Avoid_: Freigabe, Teilen (wenn Zugriff für weitere Nutzer gemeint ist; CamperLog hat genau einen Nutzer)
+**Share link** (Share-Link):
+A link through which a single trip or campsite is visible to third parties, read-only. Expenses are never visible through it. The user can deactivate a share link at any time; it does not expire on its own.
+_Avoid_: Sharing, invitation (when access for further users is meant; CamperLog has exactly one user)

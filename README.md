@@ -1,82 +1,84 @@
 # CamperLog 🚐
 
-Ein modernes **Command-Line Interface (CLI)** zum Verwalten und Dokumentieren von Camper-Van-Reisen. Erfassen Sie Ihre Trips, Tankfüllungen und berechnen Sie automatisch den Treibstoffverbrauch.
+A modern **command-line interface (CLI)** and web dashboard for managing and documenting camper van journeys. Record your trips and refuelings and calculate the fuel consumption automatically.
 
 **Version:** 0.1.0  
 **Python:** >=3.11  
-**Status:** In aktiver Entwicklung
+**Status:** under active development
+
+The user interface (web pages, CLI output and `--help` texts) is currently in German. Code, comments and documentation are in English.
 
 ---
 
 ## 🎯 Features
 
-### Reiseverwaltung (Trip-Tracking)
-- ✅ Neue Reisen erfassen (von → zu, Kilometer, Datum)
-- ✅ Übersicht aller Reisen in formatierter Tabelle
-- ✅ Chronologische Sortierung (neueste zuerst)
+### Trip management (trip tracking)
+- ✅ Record new trips (from → to, kilometers, date)
+- ✅ Overview of all trips in a formatted table
+- ✅ Chronological sorting (newest first)
 
-### Tankfüllungen (Fuel-Logging)
-- ✅ Tankvorgänge mit Kosten dokumentieren
-- ✅ Automatische Verbrauchsberechnung (L/100km)
-- ✅ Kosten pro Liter und Gesamtausgaben tracken
-- ✅ Kilometerstand-Differenzen erfassen
+### Refuelings (fuel logging)
+- ✅ Document refuelings with costs
+- ✅ Automatic consumption calculation (L/100km)
+- ✅ Track price per liter and total expenses
+- ✅ Record odometer differences
 
-### Web-Dashboard
-- 🔐 Login mit Passwort, alle Seiten und die API (`/api/*`) sind geschützt
-- 📱 Responsiv: Handy, Tablet und Rechner
-- 📈 Reisen und Tankfüllungen erfassen, Tankkosten als Diagramm
+### Web dashboard
+- 🔐 Login with a password, all pages and the API (`/api/*`) are protected
+- 📱 Responsive: phone, tablet and desktop
+- 📈 Record trips and refuelings, fuel costs as a chart
 
-### Datenmanagement
-- 💾 SQLite-Datenbank (persistent, lokal)
-- 🔒 Validierung aller Eingaben (Datumsformat, Zahlenwerte)
-- 📊 Rich-formatierte Tabellen mit Farben
+### Data management
+- 💾 SQLite database (persistent, local)
+- 🔒 Validation of all inputs (date format, numeric values)
+- 📊 Rich-formatted tables with colors
 
 ---
 
 ## 📦 Installation
 
-### Voraussetzungen
-- Python 3.11 oder höher
-- pip oder pip3
+### Prerequisites
+- Python 3.11 or higher
+- pip or pip3
 - Optional: virtualenv / conda
 
-### Setup (mit venv)
+### Setup (with venv)
 
 ```bash
-# 1. Repository klonen
+# 1. Clone the repository
 git clone <repo-url>
 cd camperlog
 
-# 2. Virtuelles Environment erstellen
+# 2. Create a virtual environment
 python3 -m venv .venv
 source .venv/bin/activate  # Linux/macOS
-# oder für Windows:
+# or on Windows:
 # .venv\Scripts\activate
 
-# 3. Dependencies installieren
+# 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Entwickler-Tools (optional)
+# 4. Developer tools (optional)
 pip install -r requirements-dev.txt
 ```
 
-### Installation aus Quelle
+### Installation from source
 ```bash
 pip install -e .
 ```
 
-Danach ist `camperlog` als globales Kommando verfügbar:
+Afterwards `camperlog` is available as a global command:
 ```bash
 camperlog --help
 ```
 
 ---
 
-## 🚀 Verwendung
+## 🚀 Usage
 
-### Trips verwalten
+### Managing trips
 
-#### Eine neue Reise erfassen
+#### Record a new trip
 ```bash
 camperlog trip add --from München --to Berlin --km 600 --date 2026-07-26
 ```
@@ -86,7 +88,7 @@ Output:
 ✓ Reise gespeichert: München → Berlin (600 km)
 ```
 
-#### Alle Reisen anzeigen
+#### Show all trips
 ```bash
 camperlog trip list
 ```
@@ -101,9 +103,9 @@ Output:
 └────────────┴────────┴────────┴────┘
 ```
 
-### Tankfüllungen verwalten
+### Managing refuelings
 
-#### Tankvorgang erfassen
+#### Record a refueling
 ```bash
 camperlog fuel add --liters 50.5 --price-per-liter 1.85 --odometer 45000 --date 2026-07-26
 ```
@@ -113,7 +115,7 @@ Output:
 ✓ Tankfüllung gespeichert: 50.5L @ 1.85€/L = 93.43€
 ```
 
-#### Alle Tankfüllungen mit Verbrauch anzeigen
+#### Show all refuelings with consumption
 ```bash
 camperlog fuel list
 ```
@@ -130,35 +132,35 @@ Output:
 
 ---
 
-## 🌐 Web-Server
+## 🌐 Web server
 
-Der Webserver braucht zwei Umgebungsvariablen und startet **ohne sie nicht**, damit keine Instanz versehentlich ungeschützt online geht:
+The web server needs two environment variables and **does not start without them**, so that no instance accidentally goes online unprotected:
 
-| Variable | Pflicht | Zweck |
+| Variable | Required | Purpose |
 |---|---|---|
-| `CAMPERLOG_PASSWORD` | ja (Web) | Login-Passwort |
-| `CAMPERLOG_SECRET_KEY` | ja (Web) | Signatur der Session-Cookies |
-| `DATABASE_URL` | nein lokal, ja auf Railway | Datenbank; ohne Angabe SQLite unter `data/camperlog.db` |
+| `CAMPERLOG_PASSWORD` | yes (web) | login password |
+| `CAMPERLOG_SECRET_KEY` | yes (web) | signature of the session cookies |
+| `DATABASE_URL` | no locally, yes on Railway | database; without it SQLite at `data/camperlog.db` |
 
-Lokal starten:
+Start locally:
 
 ```bash
 CAMPERLOG_PASSWORD=test CAMPERLOG_SECRET_KEY=dev make serve
 ```
 
-Dann `http://127.0.0.1:8000` öffnen. Einen Secret Key erzeugt man mit:
+Then open `http://127.0.0.1:8000`. A secret key can be generated with:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Auf Railway beide Variablen unter *Variables* setzen. Die CLI-Befehle (`camperlog trip …`, `camperlog fuel …`) brauchen sie nicht.
+On Railway, set both variables under *Variables*. The CLI commands (`camperlog trip …`, `camperlog fuel …`) do not need them.
 
 ---
 
-## 📋 Datenbank-Schema
+## 📋 Database schema
 
-### Tabelle: `trips`
+### Table: `trips`
 ```sql
 CREATE TABLE trips (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -169,7 +171,7 @@ CREATE TABLE trips (
 )
 ```
 
-### Tabelle: `fuel_entries`
+### Table: `fuel_entries`
 ```sql
 CREATE TABLE fuel_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,92 +183,92 @@ CREATE TABLE fuel_entries (
 )
 ```
 
-**Speicherort:** `data/camperlog.db` (relative zum Projekt-Root)
+**Location:** `data/camperlog.db` (relative to the project root)
 
 ---
 
-## 🛠️ Entwicklung
+## 🛠️ Development
 
-### Projektstruktur
+### Project structure
 ```
 camperlog/
 ├── src/camperlog/
 │   ├── __init__.py
-│   ├── cli.py              # Click-CLI-Befehle
-│   ├── config.py           # Pflicht-Variablen für den Webserver
-│   ├── database.py         # SQLite-Operationen
-│   ├── models.py           # Datenklassen (Trip, FuelEntry)
+│   ├── cli.py              # Click CLI commands
+│   ├── config.py           # required variables for the web server
+│   ├── database.py         # SQLite operations
+│   ├── models.py           # data classes (Trip, FuelEntry)
 │   ├── commands/
 │   └── web/
-│       ├── app.py          # FastAPI-App, Session-Middleware, /health
-│       ├── auth.py         # Login/Logout, Abhängigkeit "eingeloggt"
-│       ├── pages.py        # HTML-Seiten (Dashboard)
-│       ├── api.py          # JSON-API /api/*
-│       ├── schemas.py      # Pydantic-Modelle
+│       ├── app.py          # FastAPI app, session middleware, /health
+│       ├── auth.py         # login/logout, "logged in" dependency
+│       ├── pages.py        # HTML pages (dashboard)
+│       ├── api.py          # JSON API /api/*
+│       ├── schemas.py      # Pydantic models
 │       └── templates/      # base.html, login.html, dashboard.html
 ├── tests/
-│   ├── test_cli.py         # CLI-Tests
-│   ├── test_config.py      # Startprüfung des Webservers
-│   ├── test_database.py    # Datenbankfunktions-Tests
-│   └── integration/        # Web-Tests (Login, API, Dashboard)
-├── data/                   # Datenbank-Verzeichnis
-├── docs/                   # Dokumentation
-├── pyproject.toml          # Projektmetadaten & Tool-Config
-├── requirements.txt        # Produktive Dependencies
-├── requirements-dev.txt    # Entwickler-Dependencies
-├── Makefile               # Häufige Befehle
-└── README.md              # Diese Datei
+│   ├── test_cli.py         # CLI tests
+│   ├── test_config.py      # start-up check of the web server
+│   ├── test_database.py    # database function tests
+│   └── integration/        # web tests (login, API, dashboard)
+├── data/                   # database directory
+├── docs/                   # documentation
+├── pyproject.toml          # project metadata & tool config
+├── requirements.txt        # production dependencies
+├── requirements-dev.txt    # developer dependencies
+├── Makefile                # common commands
+└── README.md               # this file
 ```
 
 ### Dependencies
 
 **Production:**
-- `click>=8.1.0` – CLI-Framework
-- `rich>=13.0.0` – Farbige, formatierte Terminal-Ausgabe
-- `fastapi`, `uvicorn`, `jinja2` – Web-Server und Dashboard
-- `itsdangerous` – Signatur der Session-Cookies
-- `python-multipart` – Login-Formular
+- `click>=8.1.0` – CLI framework
+- `rich>=13.0.0` – colored, formatted terminal output
+- `fastapi`, `uvicorn`, `jinja2` – web server and dashboard
+- `itsdangerous` – signature of the session cookies
+- `python-multipart` – login form
 
 **Development:**
-- `pytest>=7.0` – Testing Framework
-- `pytest-cov>=4.0` – Code Coverage
-- `black>=23.0` – Code Formatter
-- `flake8>=6.0` – Linter
-- `mypy>=1.0` – Type Checker
+- `pytest>=7.0` – testing framework
+- `pytest-cov>=4.0` – code coverage
+- `black>=23.0` – code formatter
+- `flake8>=6.0` – linter
+- `mypy>=1.0` – type checker
 
-### Häufige Entwicklungs-Befehle
+### Common development commands
 
 ```bash
-# Tests ausführen (mit Coverage)
+# Run tests (with coverage)
 python -m pytest tests/ -v
 
-# Linting prüfen
+# Check linting
 python -m flake8 src/
 
-# Type-Checking
+# Type checking
 python -m mypy src/ --ignore-missing-imports
 
-# Code formatieren
+# Format code
 black src/ tests/
 
-# Alle Checks (linting + type-check + tests)
-make check  # Falls Makefile konfiguriert
+# All checks (linting + type check + tests)
+make check  # if the Makefile is configured
 ```
 
-### Neuen Feature entwickeln
+### Developing a new feature
 
-1. **Feature-Branch erstellen:**
+1. **Create a feature branch:**
    ```bash
    git checkout -b feat/feature-name
    ```
 
-2. **Code schreiben + Tests:**
+2. **Write code + tests:**
    ```bash
-   # Neue Funktion in database.py oder cli.py
+   # New function in database.py or cli.py
    # Tests in tests/
    ```
 
-3. **Quality Checks:**
+3. **Quality checks:**
    ```bash
    python -m flake8 src/
    python -m mypy src/
@@ -274,10 +276,10 @@ make check  # Falls Makefile konfiguriert
    black src/ tests/
    ```
 
-4. **Commit + Push:**
+4. **Commit + push:**
    ```bash
    git add .
-   git commit -m "feat: Kurzbeschreibung"
+   git commit -m "feat: short description"
    git push origin feat/feature-name
    ```
 
@@ -285,35 +287,35 @@ make check  # Falls Makefile konfiguriert
 
 ## 🧪 Tests
 
-Das Projekt nutzt **pytest** mit **Coverage-Reporting**.
+The project uses **pytest** with **coverage reporting**.
 
-### Tests ausführen
+### Running tests
 
 ```bash
-# Alle Tests mit Verbose-Output
+# All tests with verbose output
 python -m pytest tests/ -v
 
-# Mit Coverage-Report
+# With coverage report
 python -m pytest tests/ --cov=src/camperlog
 
-# Nur einen Test-File
+# A single test file
 python -m pytest tests/test_cli.py -v
 ```
 
-### Coverage-Ziel
-- Mindestens **80%** Code-Coverage angestrebt
-- Alle neuen Features müssen Tests haben
+### Coverage goal
+- At least **80%** code coverage is aimed for
+- All new features must have tests
 
-### Test-Struktur
+### Test structure
 ```
 tests/
-├── test_cli.py          # CLI-Befehle testen
+├── test_cli.py          # test the CLI commands
 │   ├── test_trip_add_valid
 │   ├── test_trip_add_invalid_date
 │   ├── test_trip_list_empty
 │   └── test_trip_list_with_data
 │
-└── test_database.py     # Datenbankfunktionen testen
+└── test_database.py     # test the database functions
     ├── test_add_trip
     ├── test_get_all_trips
     └── test_empty_trips_list
@@ -321,30 +323,30 @@ tests/
 
 ---
 
-## 📝 Code-Stil & Quality
+## 📝 Code style & quality
 
-Das Projekt befolgt strikte Code-Standards:
+The project follows strict code standards:
 
-### Black (Formatter)
-- Line-Length: 88 Zeichen
+### Black (formatter)
+- Line length: 88 characters
 - Python 3.11+ target
 
 ```bash
 black src/ tests/
 ```
 
-### Flake8 (Linter)
-Prüft auf:
-- Syntax-Fehler
-- Unused Imports
-- Naming Conventions
-- Komplexität
+### Flake8 (linter)
+Checks for:
+- syntax errors
+- unused imports
+- naming conventions
+- complexity
 
 ```bash
 flake8 src/
 ```
 
-### Mypy (Type Checker)
+### Mypy (type checker)
 Strict type annotations:
 ```bash
 mypy src/ --ignore-missing-imports
@@ -354,46 +356,48 @@ mypy src/ --ignore-missing-imports
 
 ## 📊 Roadmap
 
-- [ ] **v0.2.0** – Wartungs-Logging
-  - Speichern von Wartungsarbeiten (Ölwechsel, Inspektion, etc.)
-  - Filter und Statistiken
+- [ ] **v0.2.0** – Maintenance logging
+  - Store maintenance work (oil change, inspection, etc.)
+  - Filters and statistics
 
-- [ ] **v0.3.0** – Erweiterte Berichte
-  - Excel/CSV-Export
-  - Monats-/Jahres-Statistiken
-  - Treibstoffverbrauch-Trends
+- [ ] **v0.3.0** – Extended reports
+  - Excel/CSV export
+  - Monthly/yearly statistics
+  - Fuel consumption trends
 
-- [ ] **v0.4.0** – Web-Dashboard (optional)
-  - REST-API
-  - Web UI mit Grafiken
+- [ ] **v0.4.0** – Web dashboard (optional)
+  - REST API
+  - Web UI with charts
+
+The current product direction (trips with stops, campsites and a map, expenses, share links) is described in [docs/prd-realignment.md](docs/prd-realignment.md).
 
 ---
 
 ## 🤝 Contributing
 
-Contributions sind **willkommen**! 
+Contributions are **welcome**!
 
-1. Fork das Repo
-2. Feature-Branch erstellen (`git checkout -b feat/AmazingFeature`)
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feat/AmazingFeature`)
 3. Commit (`git commit -m 'feat: Add AmazingFeature'`)
 4. Push (`git push origin feat/AmazingFeature`)
-5. Pull Request öffnen
+5. Open a pull request
 
-**Bitte beachten:**
-- ✅ Alle Tests müssen passen
-- ✅ Code muss formattiert sein (black)
-- ✅ Keine flake8 Warnungen
-- ✅ Type-Checking muss passen (mypy)
-
----
-
-## 📄 Lizenz
-
-Dieses Projekt ist lizenziert unter der **MIT License** – siehe [LICENSE](LICENSE) für Details.
+**Please note:**
+- ✅ All tests must pass
+- ✅ Code must be formatted (black)
+- ✅ No flake8 warnings
+- ✅ Type checking must pass (mypy)
 
 ---
 
-## 👤 Autoren
+## 📄 License
+
+This project is licensed under the **MIT License** – see [LICENSE](LICENSE) for details.
+
+---
+
+## 👤 Authors
 
 - **Alexander Eckert** – alexander.eckert@mailbox.org
 
@@ -401,20 +405,20 @@ Dieses Projekt ist lizenziert unter der **MIT License** – siehe [LICENSE](LICE
 
 ## 📞 Support
 
-Probleme oder Fragen?
+Problems or questions?
 
 - 📧 Email: alexander.eckert@mailbox.org
 - 🐛 Issues: [GitHub Issues](https://github.com/axieccolo1110/camperlog/issues)
 
 ---
 
-## 🙏 Danksagungen
+## 🙏 Acknowledgements
 
-Gebaut mit:
-- [Click](https://click.palletsprojects.com/) – CLI-Framework
-- [Rich](https://rich.readthedocs.io/) – Terminal-Rendering
-- [pytest](https://pytest.org/) – Testing Framework
+Built with:
+- [Click](https://click.palletsprojects.com/) – CLI framework
+- [Rich](https://rich.readthedocs.io/) – terminal rendering
+- [pytest](https://pytest.org/) – testing framework
 
 ---
 
-**Happy Camping! 🏕️🚐**
+**Happy camping! 🏕️🚐**
