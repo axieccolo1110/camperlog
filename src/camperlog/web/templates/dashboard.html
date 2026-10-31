@@ -1,57 +1,13 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CamperLog Dashboard</title>
+{% extends "base.html" %}
+
+{% block title %}CamperLog Dashboard{% endblock %}
+{% block heading %}CamperLog Dashboard{% endblock %}
+
+{% block head_extra %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; padding: 2rem; }
-    h1 { font-size: 1.8rem; margin-bottom: 1.5rem; }
-    h2 { font-size: 1.1rem; margin-bottom: 0.75rem; color: #333; }
+{% endblock %}
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    .card {
-      background: #fff;
-      border-radius: 8px;
-      padding: 1.25rem 1.5rem;
-      box-shadow: 0 1px 4px rgba(0,0,0,.08);
-    }
-    .card h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-bottom: .4rem; }
-    .card p { font-size: 2rem; font-weight: 700; color: #2563eb; }
-
-    section { margin-bottom: 2.5rem; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    th { background: #2563eb; color: #fff; text-align: left; padding: .6rem 1rem; font-size: .85rem; }
-    td { padding: .6rem 1rem; font-size: .9rem; border-bottom: 1px solid #f0f0f0; }
-    tr:last-child td { border-bottom: none; }
-    tr:nth-child(even) td { background: #fafafa; }
-
-    .chart-wrap { background: #fff; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-
-    .form-card { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    .form-card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: #333; }
-    .form-row { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; }
-    .form-group { display: flex; flex-direction: column; gap: .3rem; }
-    .form-group label { font-size: .8rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .04em; }
-    .form-group input { padding: .45rem .75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: .9rem; font-family: inherit; }
-    .form-group input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
-    .form-group.km input { width: 7rem; }
-    .btn-primary { padding: .5rem 1.25rem; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-size: .9rem; font-weight: 600; cursor: pointer; }
-    .btn-primary:hover { background: #1d4ed8; }
-    .form-error { margin-top: .5rem; font-size: .85rem; color: #dc2626; min-height: 1.2em; }
-  </style>
-</head>
-<body>
-
-<h1>CamperLog Dashboard</h1>
-
+{% block content %}
 <div class="stats">
   <div class="card">
     <h2>Reisen</h2>
@@ -76,13 +32,13 @@
     <tbody>
       {% for t in trips %}
       <tr>
-        <td>{{ t.date }}</td>
-        <td>{{ t.origin }}</td>
-        <td>{{ t.destination }}</td>
-        <td>{{ t.km }}</td>
+        <td data-label="Datum">{{ t.date }}</td>
+        <td data-label="Von">{{ t.origin }}</td>
+        <td data-label="Nach">{{ t.destination }}</td>
+        <td data-label="km">{{ t.km }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="4" style="color:#888">Keine Reisen vorhanden.</td></tr>
+      <tr><td colspan="4" class="empty">Keine Reisen vorhanden.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -99,17 +55,17 @@
         </div>
         <div class="form-group">
           <label for="trip-origin">Von</label>
-          <input type="text" id="trip-origin" placeholder="z.B. München" required>
+          <input type="text" id="trip-origin" autocomplete="off" placeholder="z.B. München" required>
         </div>
         <div class="form-group">
           <label for="trip-destination">Nach</label>
-          <input type="text" id="trip-destination" placeholder="z.B. Berlin" required>
+          <input type="text" id="trip-destination" autocomplete="off" placeholder="z.B. Berlin" required>
         </div>
         <div class="form-group km">
           <label for="trip-km">km</label>
-          <input type="number" id="trip-km" min="1" placeholder="600" required>
+          <input type="number" id="trip-km" inputmode="numeric" min="1" placeholder="600" required>
         </div>
-        <button type="submit" class="btn-primary">Reise speichern</button>
+        <button type="submit" class="btn btn-primary">Reise speichern</button>
       </div>
       <p class="form-error" id="trip-error"></p>
     </form>
@@ -125,15 +81,15 @@
     <tbody>
       {% for e in fuel_entries %}
       <tr>
-        <td>{{ e.date }}</td>
-        <td>{{ "%.1f"|format(e.liters) }} L</td>
-        <td>{{ "%.3f"|format(e.price_per_liter) }} €</td>
-        <td>{{ "%.2f"|format(e.total_cost) }} €</td>
-        <td>{{ e.odometer }} km</td>
-        <td>{{ e.consumption }}</td>
+        <td data-label="Datum">{{ e.date }}</td>
+        <td data-label="Liter">{{ "%.1f"|format(e.liters) }} L</td>
+        <td data-label="€/L">{{ "%.3f"|format(e.price_per_liter) }} €</td>
+        <td data-label="Gesamt">{{ "%.2f"|format(e.total_cost) }} €</td>
+        <td data-label="km-Stand">{{ e.odometer }} km</td>
+        <td data-label="L/100km">{{ e.consumption }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="6" style="color:#888">Keine Tankfüllungen vorhanden.</td></tr>
+      <tr><td colspan="6" class="empty">Keine Tankfüllungen vorhanden.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -150,17 +106,17 @@
         </div>
         <div class="form-group">
           <label for="fuel-liters">Liter</label>
-          <input type="number" id="fuel-liters" step="0.01" min="0.1" placeholder="45.5" required>
+          <input type="number" id="fuel-liters" inputmode="decimal" step="0.01" min="0.1" placeholder="45.5" required>
         </div>
         <div class="form-group">
           <label for="fuel-price">€/Liter</label>
-          <input type="number" id="fuel-price" step="0.001" min="0.001" placeholder="1.879" required>
+          <input type="number" id="fuel-price" inputmode="decimal" step="0.001" min="0.001" placeholder="1.879" required>
         </div>
         <div class="form-group km">
           <label for="fuel-odometer">km-Stand</label>
-          <input type="number" id="fuel-odometer" min="0" placeholder="12500" required>
+          <input type="number" id="fuel-odometer" inputmode="numeric" min="0" placeholder="12500" required>
         </div>
-        <button type="submit" class="btn-primary">Tankfüllung speichern</button>
+        <button type="submit" class="btn btn-primary">Tankfüllung speichern</button>
       </div>
       <p class="form-error" id="fuel-error"></p>
     </form>
@@ -170,7 +126,7 @@
 <section>
   <h2>Tankkosten über Zeit</h2>
   <div class="chart-wrap">
-    <canvas id="fuelChart" height="120"></canvas>
+    <canvas id="fuelChart"></canvas>
   </div>
   <script>
     new Chart(document.getElementById('fuelChart'), {
@@ -190,13 +146,16 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: { legend: { position: 'top' } },
         scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' €' } } }
       }
     });
   </script>
 </section>
+{% endblock %}
 
+{% block scripts %}
 <script>
   document.getElementById('trip-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -260,6 +219,4 @@
     }
   });
 </script>
-
-</body>
-</html>
+{% endblock %}
