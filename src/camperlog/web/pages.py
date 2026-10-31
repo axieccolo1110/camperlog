@@ -70,6 +70,13 @@ def trip_detail(
     )
 
 
+@router.get("/map", response_class=HTMLResponse)
+def map_page(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="map.html", context={"show_logout": True}
+    )
+
+
 @router.get("/campsites", response_class=HTMLResponse)
 def campsites_page(request: Request, session: Session = Depends(get_session)):
     return templates.TemplateResponse(
