@@ -97,6 +97,38 @@ The order follows the dependencies: each milestone builds on the previous one.
 
 Reminders for maintenance by odometer reading or time (e.g. oil change) are wanted but have low priority. Structure and scope will only be defined when the milestone comes up.
 
+### M7 — Voice input via Telegram
+
+([ADR 0007](adr/0007-telegram-bot-as-voice-channel.md), [ADR 0008](adr/0008-speech-to-text-via-cloud-api.md), [ADR 0009](adr/0009-language-understanding-via-claude-api-with-shared-tools.md))
+
+**Order:** implemented right after M4, because recording refuelings and expenses is the main use. It is numbered M7 so that existing references to M5 and M6 stay valid.
+
+**Problem:** on the road, entering data in the web form is tedious: at the pump, on arrival at a campsite, while the co-driver holds the phone. Things are entered later from memory or not at all.
+
+**Goal:** the user talks to CamperLog through a private Telegram bot: a voice message or a typed sentence is understood, shown back for confirmation and only then saved. Questions about one's own data are answered directly.
+
+- **Channel:** a Telegram bot, created with BotFather, that only answers the one configured Telegram account. Messages from anyone else are ignored without a reply, and nothing is stored.
+- **Voice messages** are turned into text. The bot first shows what it understood (`Verstanden: „…“`), then handles it like a typed message.
+- **Recording**, in natural German sentences:
+  - refueling: liters, price per liter, odometer reading (e.g. „48 Liter für 1,79, Kilometerstand 84.200“)
+  - other expense: amount, category, optional note (e.g. „Fähre 120 Euro“)
+  - stop: place name and date (default today), or a location shared in Telegram
+- **Always confirm:** every writing action is shown as a **proposal** with the recognized values and the buttons [Speichern] [Abbrechen]. Nothing is saved without a tap on [Speichern]. Missing required values (e.g. the odometer reading) are asked for before the proposal is shown.
+- **Defaults:** without a date, today is meant. The trip follows the rule from M4: an expense gets the trip whose period includes its date as a suggestion, visible in the proposal. A stop needs a trip that includes its date; if there is none, the bot says so and creates nothing.
+- **Questions** are answered without confirmation, e.g. „Was hat die Reise bisher gekostet?“ (total with breakdown by category), „Wo waren wir letzten Sommer?“, „Wie war der Verbrauch auf der letzten Reise?“.
+- **Reliability:** if speech recognition or language understanding is unavailable, the bot says so in one sentence. The web forms always keep working. The bot never invents values: what it did not understand, it asks for.
+- **Privacy:** voice messages go to the speech-to-text provider, message texts and the data needed for an answer go to the language model provider (Anthropic). Audio is not stored in CamperLog.
+
+Explicitly **not** part of M7:
+
+- Editing or deleting via the bot (only via web and CLI)
+- Bookmarking campsites via the bot
+- Messages the bot sends on its own (reminders, summaries)
+- Photos of receipts, group chats, further Telegram accounts
+- An MCP connector for the Claude app. The shared tool layer keeps it possible later.
+
+**Done when:** a spoken „48 Liter für 1,79, Kilometerstand 84.200“ during a trip leads to a proposal with these values and that trip, and after [Speichern] appears as a refueling of that trip with an unchanged consumption calculation; a location shared in Telegram becomes a stop of the current trip after confirmation; „Was hat die Reise bisher gekostet?“ answers the same total and breakdown as the web; a message from another Telegram account gets no reply and changes nothing.
+
 ## Open points
 
 No open product decisions. Technical details (e.g. map library and map tiles, migration strategy for PostgreSQL in production) are settled per milestone during implementation.

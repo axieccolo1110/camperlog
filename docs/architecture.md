@@ -44,7 +44,10 @@ src/camperlog/
     campsites.py       campsites, effective status
     expenses.py        expenses, categories, trip suggestion, trip total
     sharing.py         create/deactivate share links, public views
-    geocoding.py       look up coordinates for a place name (Nominatim, M3)
+    geocoding.py       look up coordinates for a place name (Nominatim, M3), reverse lookup (M7)
+    speech.py          transcribe voice messages (cloud speech-to-text, M7)
+  assistant/           tool layer for the bot (M7): tools.py (tool definitions over services), proposals
+  telegram/            Telegram entry point (M7): webhook router, Telegram client, update handling
   cli.py               Click root, registers the groups from commands/
   commands/            one module per Click group: trip.py, campsite.py, expense.py, fuel.py
   web/
@@ -104,6 +107,7 @@ Server-rendered Jinja pages with a shared `base.html`, no SPA ([ADR 0005](adr/00
 | `GET/POST /login`, `POST /logout` | public | login form |
 | `GET /health` | public | Railway health check |
 | `GET /s/{token}` | public | share view (trip or campsite) |
+| `POST /telegram/webhook` | secret token + one Telegram user ID | Telegram bot (M7) |
 | `GET /`, `/trips…`, `/campsites…`, `/map`, `/expenses…` | logged in | private pages |
 | `/api/*` | logged in | JSON API for forms and the map |
 
@@ -124,6 +128,10 @@ Server-rendered Jinja pages with a shared `base.html`, no SPA ([ADR 0005](adr/00
 | `CAMPERLOG_PASSWORD` | yes for the web | login password |
 | `CAMPERLOG_SECRET_KEY` | yes for the web | signature of the session cookies |
 
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ALLOWED_USER_ID` | no | Telegram bot (M7); without them the bot is off |
+| `ANTHROPIC_API_KEY` | no | language understanding of the bot (M7) |
+| API key of the speech-to-text provider | no | voice messages (M7) |
+
 Without the password or the secret key the web server does not start, so no instance accidentally goes online unprotected.
 
 New dependencies: `alembic`, `itsdangerous` (for `SessionMiddleware`), `python-multipart` (login form), `httpx` (server-side coordinate lookup; today dev-only, becomes a production dependency in M3).
@@ -143,5 +151,6 @@ New dependencies: `alembic`, `itsdangerous` (for `SessionMiddleware`), `python-m
 | M3 Campsite + map | `services/campsites.py`, `services/geocoding.py`, Leaflet, `/api/map`, `/api/geocode` |
 | M4 Expenses | `services/expenses.py`, categories, migration of the fuel entries, switch `consumption.py` to fuel expenses |
 | M5 Share links | `services/sharing.py`, `web/share.py`, share templates |
+| M7 Voice via Telegram (after M4) | `telegram/`, `assistant/` (tool layer, proposals table), `services/speech.py`, reverse lookup in `services/geocoding.py` ([ADR 0007](adr/0007-telegram-bot-as-voice-channel.md)–[0009](adr/0009-language-understanding-via-claude-api-with-shared-tools.md)) |
 
 CLAUDE.md is adjusted to the then-current state in every milestone.

@@ -29,3 +29,7 @@ _Avoid_: Fuel entry, fill-up (as a separate object)
 **Share link** (Share-Link):
 A link through which a single trip or campsite is visible to third parties, read-only. Expenses are never visible through it. The user can deactivate a share link at any time; it does not expire on its own.
 _Avoid_: Sharing, invitation (when access for further users is meant; CamperLog has exactly one user)
+
+**Proposal** (Vorschlag):
+An action the Telegram bot has understood from a message (e.g. record a refueling, add a stop) and shows with its values for confirmation. Only [Speichern] carries it out, with exactly the values shown; [Abbrechen] discards it. A proposal can be carried out once and expires after 24 hours.
+_Avoid_: Draft, pending entry
