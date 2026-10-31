@@ -8,7 +8,7 @@ Aufbau eines Eintrags: **Was** · **Technik** · **Lief gut / lief schlecht** ·
 
 ## 2026-10-31 — Neuausrichtung: PRD, Architektur, ADRs
 
-**Was:** Die Produktrichtung neu gedacht und als PRD, Architekturbeschreibung, Glossar (CONTEXT.md) und fünf ADRs festgehalten. Lief über zwei Sessions: Die erste wurde unterbrochen, die zweite hat sie fortgesetzt.
+**Was:** Die Produktrichtung neu gedacht und als PRD, Architekturbeschreibung, Glossar (CONTEXT.md) und fünf ADRs festgehalten, danach M1–M3 in vertikale Slices als User Stories zerlegt. Lief über zwei Sessions: Die erste wurde unterbrochen, die zweite hat sie fortgesetzt.
 
 **Technik:**
 - *Grilling mit Design-Tree* (Skills `grilling` + `domain-modeling`): Fragen in Runden, jede mit Empfehlung, nur Fragen, deren Voraussetzungen schon entschieden sind.
@@ -21,6 +21,7 @@ Aufbau eines Eintrags: **Was** · **Technik** · **Lief gut / lief schlecht** ·
 - Die Personas haben Spannungen sichtbar gemacht: Jörg wollte *keine* Karte, Sabine wollte sie als Kern, Axi auch. Erst der Widerspruch hat die eigene Vision geschärft.
 - Die Recherche hat die Positionierung entschieden („ergänzt Park4Night/Fuelio, ersetzt sie nicht“). Ohne Recherche wäre das eine Bauchentscheidung gewesen.
 - Beim Abgleich mit dem Code kam heraus, dass das Dashboard öffentlich ohne Login läuft. Das wurde zu Meilenstein M1.
+- **Aha-Moment:** Erst die Zerlegung in vertikale Slices hat gezeigt, dass das PRD „Bearbeiten und Löschen“ komplett vergessen hatte, obwohl ausführlich gegrillt worden war. Die App kann heute nur anlegen und auflisten, und das fiel niemandem auf, solange wir in Fähigkeiten („Stellplatz verwalten“) statt in konkreten Nutzerschritten gedacht haben.
 
 **Lief schlecht:**
 - Das Rohtranskript der alten Session hat zehntausende Tokens in den Hauptkontext geladen. Ein günstiger Subagent (Haiku/Explore) hätte nur die Zusammenfassung liefern können.
@@ -33,5 +34,6 @@ Aufbau eines Eintrags: **Was** · **Technik** · **Lief gut / lief schlecht** ·
 - Teure Lesearbeit (Transkripte, Logs, Recherche) an kleine Subagents geben. Urteils- und Syntheseaufgaben mit viel Gesprächskontext beim Hauptagenten lassen.
 - Vor jedem Push prüfen: Gehört der Branch schon zu einem PR?
 - Erst Architektur, dann Feature-Zerlegung, weil der Schnitt der Features von Architekturfragen abhängt (z.B. Migrationen).
+- Die Zerlegung in Slices ist auch ein Review des PRD: Konkrete User Stories mit Akzeptanzkriterien decken Lücken auf, die abstrakte Anforderungen verdecken. Ein Grilling ersetzt diesen Schritt nicht.
 
 **Kosten & Modell:** Gestartet auf Sonnet 5, dann auf Opus 5.5 gewechselt. Diskutiert: Grilling und PRD laufen meist auch auf Sonnet gut, Opus lohnt eher für Architektur und schwierige Bugs.
