@@ -1,24 +1,30 @@
 {% extends "base.html" %}
 
 {% block title %}Login – CamperLog{% endblock %}
-{% block heading %}CamperLog{% endblock %}
 
 {% block style %}
-    .login-card { max-width: 24rem; margin: 2rem auto 0; }
-    .login-card .btn { width: 100%; margin-top: 1rem; }
+  .login-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+  .login-card { width: 100%; max-width: 22rem; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadowSm); padding: 2rem 1.75rem; }
+  .login-brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 1.5rem; font-weight: 700; font-size: 18px; color: var(--text); }
+  .login-card .field { width: 100%; }
+  .login-card .btn { width: 100%; justify-content: center; margin-top: 1rem; }
 {% endblock %}
 
-{% block content %}
-<div class="form-card login-card">
-  <h2>Anmelden</h2>
-  <form method="post" action="/login">
-    <div class="form-group">
-      <label for="password">Passwort</label>
-      <input type="password" id="password" name="password"
-             autocomplete="current-password" autofocus required>
-    </div>
-    <p class="form-error" role="alert">{{ error or "" }}</p>
-    <button type="submit" class="btn btn-primary">Einloggen</button>
-  </form>
+{% block body %}
+<div class="login-shell">
+  <div class="login-card">
+    <div class="login-brand"><span class="brand-badge" aria-hidden="true">CL</span> CamperLog</div>
+    <form method="post" action="/login">
+      <div class="field">
+        <label for="password">Passwort</label>
+        <div class="input-wrap">
+          <input type="password" id="password" name="password"
+                 autocomplete="current-password" autofocus required>
+        </div>
+      </div>
+      <p class="form-error" role="alert">{{ error or "" }}</p>
+      <button type="submit" class="btn btn-primary">Einloggen</button>
+    </form>
+  </div>
 </div>
 {% endblock %}

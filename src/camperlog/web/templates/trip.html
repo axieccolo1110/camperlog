@@ -1,19 +1,30 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 
 {% block title %}Reise {{ trip.start_date }} – CamperLog{% endblock %}
 {% block heading %}Reise {{ trip.start_date }} – {{ trip.end_date }}{% endblock %}
 
 {% block content %}
-<p class="back"><a href="/">← Zurück zum Dashboard</a></p>
+<p class="back"><a href="/">{{ icons.arrow_left() }} Zurück zum Dashboard</a></p>
 
-<div class="stats">
-  <div class="card">
-    <h2>Stopps</h2>
-    <p>{{ trip.stop_count }}</p>
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.pin(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Stopps</div>
+      <div class="stat-value">{{ trip.stop_count }}</div>
+    </div>
   </div>
-  <div class="card">
-    <h2>Distanz</h2>
-    <p>{{ (trip.distance_km ~ " km") if trip.distance_km else "-" }}</p>
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.gauge(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Distanz</div>
+      <div class="stat-value">{{ (trip.distance_km ~ " km") if trip.distance_km else "-" }}</div>
+    </div>
   </div>
 </div>
 
@@ -30,8 +41,8 @@
         <td data-label="Ort">{{ s.effective_place_name or "-" }}{% if s.campsite_id %} <span class="badge">Stellplatz</span>{% endif %}</td>
         <td data-label="Koordinaten">{{ (s.effective_lat ~ ", " ~ s.effective_lon) if s.effective_lat is not none else "-" }}</td>
         <td class="actions">
-          <button type="button" class="btn btn-secondary btn-small edit-stop">Bearbeiten</button>
-          <button type="button" class="btn btn-danger btn-small delete-stop">Löschen</button>
+          <button type="button" class="btn btn-secondary btn-small edit-stop">{{ icons.pencil() }} Bearbeiten</button>
+          <button type="button" class="btn btn-danger btn-small delete-stop">{{ icons.trash() }} Löschen</button>
         </td>
       </tr>
       {% else %}
@@ -139,7 +150,7 @@
 </section>
 
 <section class="danger-zone">
-  <button type="button" class="btn btn-danger" id="delete-trip" data-stops="{{ trip.stop_count }}">Reise löschen</button>
+  <button type="button" class="btn btn-danger" id="delete-trip" data-stops="{{ trip.stop_count }}">{{ icons.trash() }} Reise löschen</button>
   <p class="form-error" id="delete-trip-error"></p>
 </section>
 {% endblock %}
@@ -306,14 +317,16 @@
       stopError.textContent = 'Bitte ein Datum angeben.';
       return;
     }
+    const place = document.getElementById('stop-place').value.trim();
     const payload = {
       date,
-      place_name: document.getElementById('stop-place').value.trim() || null,
+      place_name: place || null,
       lat: numberOrNull('stop-lat'),
       lon: numberOrNull('stop-lon'),
       campsite_id: addCampsite.campsiteId(),
     };
     if (await send('POST', `/api/trips/${TRIP_ID}/stops`, payload, stopError)) {
+      camperlogFlash('Stopp gespeichert', place ? `${date} · ${place}` : date);
       location.reload();
     }
   });
@@ -364,6 +377,7 @@
       campsite_id: editCampsite.campsiteId(),
     };
     if (await send('PUT', `/api/stops/${editingStopId}`, payload, editError)) {
+      camperlogFlash('Änderungen gespeichert');
       location.reload();
     }
   });
@@ -374,6 +388,7 @@
       const where = row.place ? ` in ${row.place}` : '';
       if (!confirm(`Stopp vom ${row.date}${where} wirklich löschen?`)) return;
       if (await send('DELETE', `/api/stops/${row.stopId}`, null, stopError)) {
+        camperlogFlash('Stopp gelöscht');
         location.reload();
       }
     });
@@ -395,15 +410,19 @@
       end_date,
       distance_km: kmValue ? parseInt(kmValue, 10) : null,
     };
-    if (await send('PUT', `/api/trips/${TRIP_ID}`, payload, errorEl)) location.reload();
+    if (await send('PUT', `/api/trips/${TRIP_ID}`, payload, errorEl)) {
+      camperlogFlash('Reise aktualisiert', `${start_date} – ${end_date}`);
+      location.reload();
+    }
   });
 
   document.getElementById('delete-trip').addEventListener('click', async (e) => {
-    const count = parseInt(e.target.dataset.stops, 10);
+    const count = parseInt(e.target.closest('button').dataset.stops, 10);
     const stops = count === 1 ? '1 Stopp' : `${count} Stopps`;
     if (!confirm(`Reise ${TRIP_PERIOD} mit ${stops} wirklich löschen?`)) return;
     const errorEl = document.getElementById('delete-trip-error');
     if (await send('DELETE', `/api/trips/${TRIP_ID}`, null, errorEl)) {
+      camperlogFlash('Reise gelöscht', TRIP_PERIOD);
       location.href = '/';
     }
   });

@@ -11,8 +11,8 @@
 {% endblock %}
 
 {% block style %}
-    #map { height: 65vh; min-height: 20rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    .map-hint { margin-bottom: .75rem; color: #555; }
+    #map { height: 65vh; min-height: 20rem; border-radius: 8px; box-shadow: var(--shadowSm); }
+    .map-hint { margin-bottom: .75rem; color: var(--muted); }
     .popup-notes { margin-top: .35rem; white-space: pre-wrap; }
     .popup-meta { margin-top: .35rem; color: #555; font-size: .85rem; }
     .popup-link { display: inline-block; margin-top: .35rem; }
@@ -20,7 +20,7 @@
     .route-toggles { margin-top: .75rem; }
     .route-toggles h3 { font-size: .95rem; margin-bottom: .25rem; }
     .swatch { display: inline-block; width: 1.4rem; height: .35rem; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }
-    .map-legend { margin-top: .75rem; font-size: .85rem; color: #555; }
+    .map-legend { margin-top: .75rem; font-size: .85rem; color: var(--muted); }
 {% endblock %}
 
 {% block content %}
