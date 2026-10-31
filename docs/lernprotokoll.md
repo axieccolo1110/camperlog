@@ -67,3 +67,30 @@ Aufbau eines Eintrags: **Was** · **Technik** · **Lief gut / lief schlecht** ·
 - Vor dem Start die Basislinie messen (Tests, Lint, mypy auf `main`). Sonst ist unklar, was der Agent kaputt gemacht hat und was schon kaputt war.
 - Bei aufeinander aufbauenden Issues im zweiten PR die Merge-Reihenfolge ausdrücklich dazuschreiben.
 - Externe Ressourcen (CDN) sind in Sandboxen oft gesperrt. Das betroffene Stück bleibt dann ungeprüft und gehört ehrlich in den Report.
+
+---
+
+## 2026-10-31 — M2 Trip mit Stopps: fünf gestapelte PRs
+
+**Was:** Meilenstein M2 komplett umgesetzt: Alembic und `db.py` ([#33](https://github.com/axieccolo1110/camperlog/pull/33), Issue #16), Service-Schicht mit `MappedAsDataclass` ([#34](https://github.com/axieccolo1110/camperlog/pull/34), #17), Trip mit Zeitraum und Datenmigration ([#35](https://github.com/axieccolo1110/camperlog/pull/35), #18), freistehende Stopps ([#36](https://github.com/axieccolo1110/camperlog/pull/36), #19), Bearbeiten und Löschen ([#37](https://github.com/axieccolo1110/camperlog/pull/37), #20). Fünf PRs, jeder baut auf dem vorherigen auf.
+
+**Technik:**
+- *Gestapelte PRs:* Jeder Branch vom vorherigen abgezweigt, Merge-Reihenfolge in jeder PR-Beschreibung.
+- *Migrationstest mit Altdaten:* Datenbank auf alter Revision füllen, migrieren, Ergebnis prüfen (so, wie die Architektur es vorsieht).
+- *Aufgabenliste* (TaskCreate) für die fünf Issues.
+- *Browser-Check* mit Playwright inklusive Dialogen und Fehlerfällen.
+
+**Lief gut:**
+- Der Migrationstest hat einen echten Datenverlust gefunden (SQLite-Cascade beim Tabellen-Umbau), bevor irgendetwas deployt war.
+- Die Schichtregel („CLI und Web importieren kein SQLAlchemy“) als Test statt nur als Satz in der Doku.
+- `make check` wurde grün, weil `MappedAsDataclass` die alten mypy-Fehler von selbst erledigt hat.
+
+**Lief schlecht:**
+- Ein Test mit veralteten CLI-Optionen war grün, obwohl er nichts prüfte (er erwartete nur „Fehler“). Negativtests sollten die *Art* des Fehlers prüfen.
+- Meine Sprach-Bereinigung vom Vormittag hatte deutsche Kommentare übersehen: Ein Wortlisten-Regex ist keine Garantie.
+- Ein `rm` in einem `sh -c`-Skript mit leerer Variable wurde vom Sicherheitscheck zu Recht blockiert.
+
+**Lernpunkte:**
+- Datenumbauten brauchen einen Test mit Altdaten, bevor man sie für fertig hält. Die Struktur-Tests allein hätten den Datenverlust nicht gefunden.
+- Bei Tests auf „schlägt fehl“ immer auch den Grund prüfen, sonst bleiben sie grün, wenn der Test selbst kaputt ist.
+- Gestapelte PRs sparen Wartezeit, kosten aber beim Mergen Aufmerksamkeit. Die Reihenfolge gehört in jede Beschreibung.
