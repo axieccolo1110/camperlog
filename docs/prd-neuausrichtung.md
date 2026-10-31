@@ -52,6 +52,8 @@ Die Reihenfolge folgt den Abhängigkeiten: Jeder Meilenstein baut auf dem vorher
 - Ein **Trip** hat Start- und Enddatum, optional eine von Hand eingetragene Distanz in km und eine geordnete Liste von **Stopps**.
 - Ein **Stopp** hat ein Datum und verweist entweder auf einen Stellplatz (und übernimmt dessen Ort) oder ist freistehend mit optionalem Ortsnamen und optionalen Koordinaten.
 - **Migration:** Jeder bestehende Trip wird ein Trip mit Start- und Enddatum gleich dem alten Datum und zwei freistehenden Stopps (Ortsname = alter Start bzw. altes Ziel). Der alte km-Wert bleibt als Distanz erhalten.
+- Das Datum eines Stopps muss im Zeitraum seines Trips liegen. Stopps werden nach Datum sortiert, bei gleichem Datum in der Reihenfolge der Erfassung.
+- Trips und Stopps lassen sich bearbeiten und löschen. Ein geänderter Trip-Zeitraum muss alle vorhandenen Stopps einschließen. Wird ein Trip gelöscht, verschwinden auch seine Stopps.
 - CLI: Trips anlegen und auflisten, Stopps zu einem Trip hinzufügen (`trip stopp …`).
 
 **Fertig, wenn:** sich eine dreiwöchige Reise mit sechs Stopps (davon zwei freistehend) per Web und per CLI erfassen lässt und alle Alt-Trips ohne Datenverlust migriert sind.
@@ -61,6 +63,7 @@ Die Reihenfolge folgt den Abhängigkeiten: Jeder Meilenstein baut auf dem vorher
 - Ein **Stellplatz** ist unabhängig von Trips anlegbar und hat: Name, Koordinaten, Status (besucht/vorgemerkt), Freitext-Notizen, feste Flags (Spielplatz vorhanden, Haustiere erlaubt) und einen optionalen externen Link (z.B. Park4Night).
 - Den Status setzt man von Hand. Sobald ein Stopp mit Datum in der Vergangenheit auf einen Stellplatz verweist, wird er automatisch „besucht“. Besuche aus der Zeit vor CamperLog lassen sich so ohne Trip eintragen.
 - Ein Stellplatz kann von beliebig vielen Stopps referenziert werden, z.B. ein Lieblingsplatz auf mehreren Reisen.
+- Stellplätze lassen sich bearbeiten und löschen. Ein Stellplatz, auf den ein Stopp verweist, lässt sich nicht löschen.
 - **Karte** im Web-Dashboard mit zwei klar getrennten Ansichten:
   - **Rückschau:** besuchte Stellplätze und freistehende Stopps mit Koordinaten als Pins. Pro Trip lässt sich eine Luftlinie einblenden, die die Stopps der Reihe nach verbindet.
   - **Vormerkliste:** vorgemerkte Stellplätze.
