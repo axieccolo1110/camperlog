@@ -21,6 +21,11 @@ Ein modernes **Command-Line Interface (CLI)** zum Verwalten und Dokumentieren vo
 - ✅ Kosten pro Liter und Gesamtausgaben tracken
 - ✅ Kilometerstand-Differenzen erfassen
 
+### Web-Dashboard
+- 🔐 Login mit Passwort, alle Seiten und die API (`/api/*`) sind geschützt
+- 📱 Responsiv: Handy, Tablet und Rechner
+- 📈 Reisen und Tankfüllungen erfassen, Tankkosten als Diagramm
+
 ### Datenmanagement
 - 💾 SQLite-Datenbank (persistent, lokal)
 - 🔒 Validierung aller Eingaben (Datumsformat, Zahlenwerte)
@@ -125,6 +130,32 @@ Output:
 
 ---
 
+## 🌐 Web-Server
+
+Der Webserver braucht zwei Umgebungsvariablen und startet **ohne sie nicht**, damit keine Instanz versehentlich ungeschützt online geht:
+
+| Variable | Pflicht | Zweck |
+|---|---|---|
+| `CAMPERLOG_PASSWORD` | ja (Web) | Login-Passwort |
+| `CAMPERLOG_SECRET_KEY` | ja (Web) | Signatur der Session-Cookies |
+| `DATABASE_URL` | nein lokal, ja auf Railway | Datenbank; ohne Angabe SQLite unter `data/camperlog.db` |
+
+Lokal starten:
+
+```bash
+CAMPERLOG_PASSWORD=test CAMPERLOG_SECRET_KEY=dev make serve
+```
+
+Dann `http://127.0.0.1:8000` öffnen. Einen Secret Key erzeugt man mit:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Auf Railway beide Variablen unter *Variables* setzen. Die CLI-Befehle (`camperlog trip …`, `camperlog fuel …`) brauchen sie nicht.
+
+---
+
 ## 📋 Datenbank-Schema
 
 ### Tabelle: `trips`
@@ -162,12 +193,22 @@ camperlog/
 ├── src/camperlog/
 │   ├── __init__.py
 │   ├── cli.py              # Click-CLI-Befehle
+│   ├── config.py           # Pflicht-Variablen für den Webserver
 │   ├── database.py         # SQLite-Operationen
 │   ├── models.py           # Datenklassen (Trip, FuelEntry)
-│   └── commands/
+│   ├── commands/
+│   └── web/
+│       ├── app.py          # FastAPI-App, Session-Middleware, /health
+│       ├── auth.py         # Login/Logout, Abhängigkeit "eingeloggt"
+│       ├── pages.py        # HTML-Seiten (Dashboard)
+│       ├── api.py          # JSON-API /api/*
+│       ├── schemas.py      # Pydantic-Modelle
+│       └── templates/      # base.html, login.html, dashboard.html
 ├── tests/
 │   ├── test_cli.py         # CLI-Tests
-│   └── test_database.py    # Datenbankfunktions-Tests
+│   ├── test_config.py      # Startprüfung des Webservers
+│   ├── test_database.py    # Datenbankfunktions-Tests
+│   └── integration/        # Web-Tests (Login, API, Dashboard)
 ├── data/                   # Datenbank-Verzeichnis
 ├── docs/                   # Dokumentation
 ├── pyproject.toml          # Projektmetadaten & Tool-Config
@@ -182,6 +223,9 @@ camperlog/
 **Production:**
 - `click>=8.1.0` – CLI-Framework
 - `rich>=13.0.0` – Farbige, formatierte Terminal-Ausgabe
+- `fastapi`, `uvicorn`, `jinja2` – Web-Server und Dashboard
+- `itsdangerous` – Signatur der Session-Cookies
+- `python-multipart` – Login-Formular
 
 **Development:**
 - `pytest>=7.0` – Testing Framework

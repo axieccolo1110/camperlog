@@ -150,6 +150,13 @@ def serve(host, port, reload):
     """Starte den Web-Server (FastAPI + Dashboard)."""
     import uvicorn
 
+    from camperlog.config import ConfigError, require_web_config
+
+    try:
+        require_web_config()
+    except ConfigError as e:
+        raise click.ClickException(str(e))
+
     uvicorn.run("camperlog.web.app:app", host=host, port=port, reload=reload)
 
 

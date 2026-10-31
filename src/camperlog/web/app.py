@@ -1,12 +1,13 @@
 """FastAPI-App: Lifespan, Session-Middleware, Router und Healthcheck."""
 
 import os
-import secrets
 from contextlib import asynccontextmanager
+from functools import cache
 
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
+from camperlog.config import ConfigError, require_web_config
 from camperlog.database import init_db
 from camperlog.web import api, auth, pages
 
@@ -28,15 +29,12 @@ def use_https_only_cookie() -> bool:
 
 
 def create_app() -> FastAPI:
-    # Ohne CAMPERLOG_SECRET_KEY gilt ein zufälliger Schlüssel pro Prozess: Logins
-    # überleben keinen Neustart, aber niemand kann Cookies fälschen. (Der
-    # Webserver-Start ohne Schlüssel wird in F1.2 ganz verhindert.)
-    secret_key = os.environ.get("CAMPERLOG_SECRET_KEY") or secrets.token_urlsafe(32)
+    require_web_config()
 
     app = FastAPI(title="CamperLog API", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         SessionMiddleware,
-        secret_key=secret_key,
+        secret_key=os.environ["CAMPERLOG_SECRET_KEY"],
         https_only=use_https_only_cookie(),
         same_site="lax",
     )
@@ -51,4 +49,19 @@ def create_app() -> FastAPI:
     return app
 
 
-app = create_app()
+@cache
+def _build_app() -> FastAPI:
+    try:
+        return create_app()
+    except ConfigError as e:
+        # Railway startet uvicorn direkt. SystemExit mit Text gibt nur die Meldung
+        # aus statt eines Tracebacks und beendet den Prozess mit Fehlercode 1.
+        raise SystemExit(f"Fehler: {e}") from None
+
+
+def __getattr__(name: str) -> FastAPI:
+    # ``app`` wird erst beim ersten Zugriff gebaut (uvicorn ``camperlog.web.app:app``).
+    # Ein Import des Moduls, etwa in Tests, braucht deshalb keine Umgebungsvariablen.
+    if name == "app":
+        return _build_app()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
