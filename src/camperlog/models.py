@@ -44,7 +44,11 @@ class Trip(Base):
 
 
 class Stop(Base):
-    """A station of a trip. For now always free-standing (campsites come in M3)."""
+    """A station of a trip.
+
+    Either free-standing (own place name and coordinates, both optional) or tied to
+    a campsite, in which case the campsite's place applies.
+    """
 
     __tablename__ = "stops"
 
@@ -55,7 +59,26 @@ class Stop(Base):
     place_name: Mapped[str | None] = mapped_column(default=None)
     lat: Mapped[float | None] = mapped_column(default=None)
     lon: Mapped[float | None] = mapped_column(default=None)
+    campsite_id: Mapped[int | None] = mapped_column(
+        ForeignKey("campsites.id"), default=None
+    )
     trip: Mapped[Trip] = relationship(back_populates="stops", init=False, repr=False)
+    # No ``default``: a default of None would be assigned in __init__ and would
+    # reset campsite_id to NULL when the stop is saved.
+    campsite: Mapped["Campsite | None"] = relationship(init=False, repr=False)
+
+    @property
+    def effective_place_name(self) -> str | None:
+        """The name of the campsite if there is one, else the stop's own place."""
+        return self.campsite.name if self.campsite else self.place_name
+
+    @property
+    def effective_lat(self) -> float | None:
+        return self.campsite.lat if self.campsite else self.lat
+
+    @property
+    def effective_lon(self) -> float | None:
+        return self.campsite.lon if self.campsite else self.lon
 
 
 class FuelEntry(Base):

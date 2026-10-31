@@ -110,9 +110,10 @@ Output:
 ```bash
 camperlog trip stop add 1 --date 2026-07-28 --place Verona --lat 45.438 --lon 10.992
 camperlog trip stop add 1 --date 2026-07-29     # a free-standing stop without a place
+camperlog trip stop add 1 --date 2026-07-30 --campsite 2   # a stop at campsite no. 2
 ```
 
-The date must lie within the period of the trip (both ends included). Coordinates are given as a pair or not at all. A new stop goes to the end of its day. Show a trip with its stops:
+The date must lie within the period of the trip (both ends included). Coordinates are given as a pair or not at all. A stop at a campsite takes over its name and coordinates, so `--campsite` cannot be combined with `--place`, `--lat` or `--lon` (`trip stop edit … --campsite` replaces an own place, `--clear-campsite` frees the stop again). The status of a campsite is computed: it is shown as *besucht* if it is marked so or a stop dated today or earlier references it; a stop planned for the future changes nothing. A new stop goes to the end of its day. Show a trip with its stops:
 ```bash
 camperlog trip show 1
 ```
@@ -226,9 +227,10 @@ CREATE TABLE stops (
     trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     position INTEGER NOT NULL,     -- order of entry; stops sort by date, then position
     date DATE NOT NULL,
-    place_name TEXT,
+    place_name TEXT,               -- own place, only without a campsite
     lat FLOAT,
-    lon FLOAT
+    lon FLOAT,
+    campsite_id INTEGER REFERENCES campsites(id)   -- takes over the campsite's place
 )
 ```
 

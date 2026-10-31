@@ -6,7 +6,11 @@ from rich.table import Table
 from camperlog.commands.common import console
 from camperlog.db import session_scope
 from camperlog.labels import STATUS_LABELS
-from camperlog.services.campsites import add_campsite, list_campsites
+from camperlog.services.campsites import (
+    add_campsite,
+    effective_statuses,
+    list_campsites,
+)
 from camperlog.services.errors import ValidationError
 
 # CLI users type the German words, the database stores the English values.
@@ -59,6 +63,7 @@ def campsite_list():
     """Zeigt alle Stellplätze an."""
     with session_scope() as session:
         campsites = list_campsites(session)
+        statuses = effective_statuses(session)
 
     if not campsites:
         console.print("[yellow]Keine Stellplätze erfasst.[/yellow]")
@@ -76,7 +81,7 @@ def campsite_list():
         table.add_row(
             str(item.id),
             item.name,
-            STATUS_LABELS[item.status],
+            STATUS_LABELS[statuses[item.id]],
             f"{item.lat}, {item.lon}",
             "✓" if item.playground else "-",
             "✓" if item.pets_allowed else "-",

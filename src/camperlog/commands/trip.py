@@ -112,13 +112,15 @@ def trip_show(trip_id):
     table.add_column("Ort", style="magenta")
     table.add_column("Koordinaten", style="green")
     for stop_item in trip_item.stops:
-        coordinates = (
-            f"{stop_item.lat}, {stop_item.lon}" if stop_item.lat is not None else "-"
-        )
+        lat, lon = stop_item.effective_lat, stop_item.effective_lon
+        coordinates = f"{lat}, {lon}" if lat is not None else "-"
+        place_name = stop_item.effective_place_name or "-"
+        if stop_item.campsite_id:
+            place_name += f" ⛺ (Stellplatz {stop_item.campsite_id})"
         table.add_row(
             str(stop_item.id),
             stop_item.date.isoformat(),
-            stop_item.place_name or "-",
+            place_name,
             coordinates,
         )
     console.print(table)
@@ -142,14 +144,22 @@ def stop():
 @click.option("--place", default=None, help="Ortsname (optional)")
 @click.option("--lat", type=float, default=None, help="Breite (optional)")
 @click.option("--lon", type=float, default=None, help="Länge (optional)")
-def stop_add(trip_id, date, place, lat, lon):
-    """Fügt einer Reise einen freistehenden Stopp hinzu."""
+@click.option(
+    "--campsite",
+    "campsite_id",
+    type=int,
+    default=None,
+    help="Nr. eines Stellplatzes (der Stopp übernimmt dessen Ort)",
+)
+def stop_add(trip_id, date, place, lat, lon, campsite_id):
+    """Fügt einer Reise einen Stopp hinzu (freistehend oder an einem Stellplatz)."""
     try:
         with session_scope() as session:
-            add_stop(session, trip_id, date, place, lat, lon)
+            stop_item = add_stop(session, trip_id, date, place, lat, lon, campsite_id)
+            name = stop_item.effective_place_name
     except (ValidationError, NotFoundError) as e:
         raise click.ClickException(str(e))
-    where = f" in {place}" if place else ""
+    where = f" in {name}" if name else ""
     console.print(
         f"[green]✓ Stopp gespeichert:[/green] {date.isoformat()}{where} "
         f"(Reise {trip_id})"
@@ -244,37 +254,77 @@ def trip_delete(trip_id, yes):
 @click.option("--lat", type=float, default=None, help="Neue Breite")
 @click.option("--lon", type=float, default=None, help="Neue Länge")
 @click.option("--clear-coordinates", is_flag=True, help="Koordinaten entfernen")
-def stop_edit(stop_id, date, place, lat, lon, clear_coordinates):
-    """Ändert Datum, Ort oder Koordinaten eines Stopps."""
+@click.option(
+    "--campsite",
+    "campsite_id",
+    type=int,
+    default=None,
+    help="Stopp an diesen Stellplatz binden (ersetzt Ortsname und Koordinaten)",
+)
+@click.option(
+    "--clear-campsite",
+    is_flag=True,
+    help="Stellplatz lösen (danach gilt ein eigener Ort, z. B. mit --place)",
+)
+def stop_edit(
+    stop_id, date, place, lat, lon, clear_coordinates, campsite_id, clear_campsite
+):
+    """Ändert Datum, Ort, Koordinaten oder Stellplatz eines Stopps."""
     if (
         date is None
         and place is None
         and lat is None
         and lon is None
         and not clear_coordinates
+        and campsite_id is None
+        and not clear_campsite
     ):
         raise click.UsageError(
-            "Nichts zu ändern: --date, --place, --lat/--lon oder --clear-coordinates."
+            "Nichts zu ändern: --date, --place, --lat/--lon, --clear-coordinates, "
+            "--campsite oder --clear-campsite."
         )
     if clear_coordinates and (lat is not None or lon is not None):
         raise click.UsageError(
             "--clear-coordinates und --lat/--lon schließen sich aus."
         )
+    if campsite_id is not None and clear_campsite:
+        raise click.UsageError("--campsite und --clear-campsite schließen sich aus.")
+    if campsite_id is not None and (
+        place is not None or lat is not None or lon is not None or clear_coordinates
+    ):
+        raise click.UsageError(
+            "--campsite übernimmt den Ort des Stellplatzes: "
+            "--place, --lat, --lon und --clear-coordinates passen nicht dazu."
+        )
     try:
         with session_scope() as session:
             current = get_stop(session, stop_id)
-            if clear_coordinates:
-                new_lat = new_lon = None
+            if campsite_id is not None:
+                # Tying the stop to a campsite replaces its own place.
+                new_place, new_lat, new_lon = None, None, None
             else:
-                new_lat = lat if lat is not None else current.lat
-                new_lon = lon if lon is not None else current.lon
+                new_place = current.place_name if place is None else place
+                if clear_coordinates:
+                    new_lat = new_lon = None
+                else:
+                    new_lat = lat if lat is not None else current.lat
+                    new_lon = lon if lon is not None else current.lon
+                if current.campsite_id is not None and not clear_campsite:
+                    # Still tied to its campsite: only the date can change.
+                    if place is not None or lat is not None or lon is not None:
+                        raise ValidationError(
+                            "Der Stopp gehört zu einem Stellplatz. "
+                            "Mit --clear-campsite lösen, dann gilt ein eigener Ort."
+                        )
+                    campsite_id = current.campsite_id
             update_stop(
                 session,
                 stop_id,
                 date or current.date,
-                current.place_name if place is None else place,
+                new_place,
                 new_lat,
                 new_lon,
+                campsite_id,
             )
     except (ValidationError, NotFoundError) as e:
         raise click.ClickException(str(e))

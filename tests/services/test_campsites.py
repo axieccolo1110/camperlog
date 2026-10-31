@@ -120,3 +120,100 @@ def test_get_campsite(session):
     assert get_campsite(session, campsite.id).name == "X"
     with pytest.raises(NotFoundError, match="999"):
         get_campsite(session, 999)
+
+
+# --- effective status ---------------------------------------------------------
+
+import datetime as dt  # noqa: E402
+
+from camperlog.services.campsites import effective_statuses  # noqa: E402
+from camperlog.services.trips import add_stop, add_trip  # noqa: E402
+
+TODAY = dt.date(2026, 10, 31)
+
+
+def _stop_on(session, campsite, day, trip_start=dt.date(2026, 1, 1)):
+    trip = add_trip(session, trip_start, dt.date(2026, 12, 31))
+    return add_stop(session, trip.id, day, campsite_id=campsite.id)
+
+
+def test_bookmarked_without_stops_stays_bookmarked(session):
+    campsite = add_campsite(session, "Neu", 45.0, 10.0)
+
+    assert effective_statuses(session, TODAY) == {campsite.id: "bookmarked"}
+
+
+def test_manual_visited_stays_visited_without_stops(session):
+    campsite = add_campsite(session, "Alt", 45.0, 10.0, "visited")
+
+    assert effective_statuses(session, TODAY) == {campsite.id: "visited"}
+
+
+def test_a_past_stop_makes_the_campsite_visited(session):
+    """The scenario: bookmarked in February, used as a stop in August, then visited."""
+    campsite = add_campsite(session, "Wiese", 45.0, 10.0)  # bookmarked in February
+    assert effective_statuses(session, dt.date(2026, 2, 15))[campsite.id] == (
+        "bookmarked"
+    )
+
+    _stop_on(session, campsite, dt.date(2026, 8, 10))  # planned as a stop in August
+
+    assert effective_statuses(session, dt.date(2026, 6, 1))[campsite.id] == "bookmarked"
+    assert effective_statuses(session, dt.date(2026, 8, 11))[campsite.id] == "visited"
+    assert effective_statuses(session, dt.date(2026, 12, 1))[campsite.id] == "visited"
+
+
+def test_a_stop_in_the_future_changes_nothing(session):
+    campsite = add_campsite(session, "Wiese", 45.0, 10.0)
+    _stop_on(session, campsite, dt.date(2026, 11, 1))
+
+    assert effective_statuses(session, TODAY)[campsite.id] == "bookmarked"
+
+
+def test_a_stop_today_counts_as_visited(session):
+    campsite = add_campsite(session, "Wiese", 45.0, 10.0)
+    _stop_on(session, campsite, TODAY)
+
+    assert effective_statuses(session, TODAY)[campsite.id] == "visited"
+    assert effective_statuses(session, TODAY - dt.timedelta(days=1))[campsite.id] == (
+        "bookmarked"
+    )
+
+
+def test_only_the_referenced_campsite_changes(session):
+    visited = add_campsite(session, "Besucht", 45.0, 10.0)
+    other = add_campsite(session, "Anderer", 46.0, 11.0)
+    _stop_on(session, visited, dt.date(2026, 8, 10))
+
+    statuses = effective_statuses(session, TODAY)
+
+    assert statuses == {visited.id: "visited", other.id: "bookmarked"}
+
+
+def test_several_stops_on_one_campsite_are_fine(session):
+    campsite = add_campsite(session, "Lieblingsplatz", 45.0, 10.0)
+    _stop_on(session, campsite, dt.date(2026, 5, 1))
+    _stop_on(session, campsite, dt.date(2026, 8, 1))
+
+    assert effective_statuses(session, TODAY) == {campsite.id: "visited"}
+
+
+def test_the_status_is_computed_not_stored(session):
+    """Deleting the only past stop makes the campsite bookmarked again."""
+    from camperlog.services.trips import delete_stop
+
+    campsite = add_campsite(session, "Wiese", 45.0, 10.0)
+    stop = _stop_on(session, campsite, dt.date(2026, 8, 10))
+    assert effective_statuses(session, TODAY)[campsite.id] == "visited"
+
+    delete_stop(session, stop.id)
+
+    assert effective_statuses(session, TODAY)[campsite.id] == "bookmarked"
+    assert get_campsite(session, campsite.id).status == "bookmarked"
+
+
+def test_default_today_is_the_real_today(session):
+    campsite = add_campsite(session, "Wiese", 45.0, 10.0)
+    _stop_on(session, campsite, dt.date.today())
+
+    assert effective_statuses(session)[campsite.id] == "visited"
