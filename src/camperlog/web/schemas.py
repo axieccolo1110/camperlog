@@ -63,6 +63,21 @@ class TripDetailRead(TripRead):
     stops: list[StopRead]
 
 
+class PlaceRead(BaseModel):
+    name: str
+    region: str | None
+    country: str | None
+    lat: float
+    lon: float
+    label: str
+
+
+class GeocodeResponse(BaseModel):
+    results: list[PlaceRead]
+    # True if the lookup service could not be reached (not the same as "no match").
+    unavailable: bool = False
+
+
 class FuelEntryCreate(BaseModel):
     date: str
     liters: float = Field(gt=0)
