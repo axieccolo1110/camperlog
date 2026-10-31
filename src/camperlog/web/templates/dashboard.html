@@ -1,50 +1,119 @@
 {% extends "base.html" %}
+{% import "_icons.html" as icons %}
 
-{% block title %}CamperLog Dashboard{% endblock %}
-{% block heading %}CamperLog Dashboard{% endblock %}
+{% block title %}Dashboard – CamperLog{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+{% block subheading %}Willkommen zurück – hier ist dein Überblick.{% endblock %}
 
 {% block head_extra %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 {% endblock %}
 
-{% block content %}
-<div class="stats">
-  <div class="card">
-    <h2>Reisen</h2>
-    <p>{{ total_trips }}</p>
-  </div>
-  <div class="card">
-    <h2>Kilometer</h2>
-    <p>{{ total_km }}</p>
-  </div>
-  <div class="card">
-    <h2>Tankkosten</h2>
-    <p>{{ total_fuel_cost }} €</p>
-  </div>
-</div>
+{% block header_actions %}
+<a href="#neue-reise" class="btn btn-primary">{{ icons.plus() }} Neue Reise</a>
+{% endblock %}
 
-<section>
-  <h2>Letzte Reisen</h2>
-  <table>
-    <thead>
-      <tr><th>Von</th><th>Bis</th><th>Stopps</th><th>km</th></tr>
-    </thead>
-    <tbody>
-      {% for t in trips %}
-      <tr>
-        <td data-label="Von"><a href="/trips/{{ t.id }}">{{ t.start_date }}</a></td>
-        <td data-label="Bis">{{ t.end_date }}</td>
-        <td data-label="Stopps">{{ t.stop_count }}</td>
-        <td data-label="km">{{ t.distance_km if t.distance_km else "-" }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4" class="empty">Keine Reisen vorhanden.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% block content %}
+
+<section class="stats-grid" aria-label="Kennzahlen">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.route(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Reisen gesamt</div>
+      <div class="stat-value">{{ total_trips }}</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.gauge(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Kilometer gesamt</div>
+      <div class="stat-value">{{ total_km }} km</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.fuel(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Tankkosten gesamt</div>
+      <div class="stat-value">{{ "%.2f"|format(total_fuel_cost) }} €</div>
+      {% if avg_price_per_liter is not none %}
+      <div class="stat-delta muted">Ø {{ "%.3f"|format(avg_price_per_liter) }} €/L</div>
+      {% endif %}
+    </div>
+  </div>
 </section>
 
-<section>
+<section class="content-grid">
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Letzte Reisen</h2>
+      <a href="#neue-reise" class="btn btn-ghost btn-small">{{ icons.plus(14) }} Neue Reise</a>
+    </div>
+    <div>
+      {% for t in trips %}
+      <a class="list-row" href="/trips/{{ t.id }}">
+        <span class="row-icon" aria-hidden="true">{{ icons.calendar() }}</span>
+        <div class="row-main">
+          <div class="row-title">{{ t.start_date }} – {{ t.end_date }}</div>
+          <div class="row-sub">{{ t.stop_count }} Stopp{{ "e" if t.stop_count != 1 }}</div>
+        </div>
+        <div class="row-value">{{ (t.distance_km ~ " km") if t.distance_km else "–" }}</div>
+        <span class="row-chevron" aria-hidden="true">{{ icons.chevron_right() }}</span>
+      </a>
+      {% else %}
+      <p class="empty-row">Keine Reisen vorhanden.</p>
+      {% endfor %}
+    </div>
+    <div class="panel-footer">
+      <span>{{ total_trips }} Reise{{ "n" if total_trips != 1 }} insgesamt</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Tankkosten über Zeit</h2>
+      <a href="/tanken#neue-tankfuellung" class="btn btn-ghost btn-small">{{ icons.plus(14) }} Neue Tankfüllung</a>
+    </div>
+    <div class="chart-area">
+      <div class="chart-wrap" style="height: 10rem;">
+        <canvas id="fuelChart"></canvas>
+      </div>
+      <div class="chart-legend"><span class="legend-dot" aria-hidden="true"></span> Kosten pro Tankfüllung</div>
+    </div>
+    <div class="rows-divider">
+      {% for e in fuel_entries %}
+      <div class="list-row">
+        <div class="row-main">
+          <div class="row-title">{{ e.date }}</div>
+          <div class="row-sub">{{ "%.1f"|format(e.liters) }} L · {{ "%.3f"|format(e.price_per_liter) }} €/L</div>
+        </div>
+        <div>
+          <div class="row-value">{{ "%.2f"|format(e.total_cost) }} €</div>
+          {% if e.consumption not in ("-", "?") %}
+          <div class="row-value-sub"><span class="pill{{ ' warn' if e.consumption|float > 9 else ' good' }}">{{ e.consumption }} L/100km</span></div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <p class="empty-row">Keine Tankfüllungen vorhanden.</p>
+      {% endfor %}
+    </div>
+    <div class="panel-footer">
+      <a href="/tanken">Alle Tankfüllungen anzeigen</a>
+    </div>
+  </div>
+
+</section>
+
+<section id="neue-reise">
   <div class="form-card">
     <h2>Neue Reise erfassen</h2>
     <form id="trip-form" novalidate>
@@ -66,88 +135,6 @@
       <p class="form-error" id="trip-error"></p>
     </form>
   </div>
-</section>
-
-<section>
-  <h2>Letzte Tankfüllungen</h2>
-  <table>
-    <thead>
-      <tr><th>Datum</th><th>Liter</th><th>€/L</th><th>Gesamt</th><th>km-Stand</th><th>L/100km</th></tr>
-    </thead>
-    <tbody>
-      {% for e in fuel_entries %}
-      <tr>
-        <td data-label="Datum">{{ e.date }}</td>
-        <td data-label="Liter">{{ "%.1f"|format(e.liters) }} L</td>
-        <td data-label="€/L">{{ "%.3f"|format(e.price_per_liter) }} €</td>
-        <td data-label="Gesamt">{{ "%.2f"|format(e.total_cost) }} €</td>
-        <td data-label="km-Stand">{{ e.odometer }} km</td>
-        <td data-label="L/100km">{{ e.consumption }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="6" class="empty">Keine Tankfüllungen vorhanden.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
-
-<section>
-  <div class="form-card">
-    <h2>Neue Tankfüllung erfassen</h2>
-    <form id="fuel-form" novalidate>
-      <div class="form-row">
-        <div class="form-group">
-          <label for="fuel-date">Datum</label>
-          <input type="date" id="fuel-date" required>
-        </div>
-        <div class="form-group">
-          <label for="fuel-liters">Liter</label>
-          <input type="number" id="fuel-liters" inputmode="decimal" step="0.01" min="0.1" placeholder="45.5" required>
-        </div>
-        <div class="form-group">
-          <label for="fuel-price">€/Liter</label>
-          <input type="number" id="fuel-price" inputmode="decimal" step="0.001" min="0.001" placeholder="1.879" required>
-        </div>
-        <div class="form-group km">
-          <label for="fuel-odometer">km-Stand</label>
-          <input type="number" id="fuel-odometer" inputmode="numeric" min="0" placeholder="12500" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Tankfüllung speichern</button>
-      </div>
-      <p class="form-error" id="fuel-error"></p>
-    </form>
-  </div>
-</section>
-
-<section>
-  <h2>Tankkosten über Zeit</h2>
-  <div class="chart-wrap">
-    <canvas id="fuelChart"></canvas>
-  </div>
-  <script>
-    new Chart(document.getElementById('fuelChart'), {
-      type: 'line',
-      data: {
-        labels: {{ chart_labels | tojson }},
-        datasets: [{
-          label: 'Kosten pro Tankfüllung (€)',
-          data: {{ chart_costs | tojson }},
-          borderColor: '#2563eb',
-          backgroundColor: 'rgba(37,99,235,0.08)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' } },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' €' } } }
-      }
-    });
-  </script>
 </section>
 {% endblock %}
 
@@ -175,6 +162,7 @@
         body: JSON.stringify({ start_date, end_date, distance_km }),
       });
       if (res.ok) {
+        camperlogFlash('Reise gespeichert', `${start_date} – ${end_date}`);
         location.reload();
       } else {
         let message = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
@@ -188,35 +176,28 @@
       errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
     }
   });
-
-  document.getElementById('fuel-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const errorEl = document.getElementById('fuel-error');
-    errorEl.textContent = '';
-
-    const date = document.getElementById('fuel-date').value;
-    const liters = parseFloat(document.getElementById('fuel-liters').value);
-    const price_per_liter = parseFloat(document.getElementById('fuel-price').value);
-    const odometer = parseInt(document.getElementById('fuel-odometer').value, 10);
-
-    if (!date || !liters || !price_per_liter || !odometer) {
-      errorEl.textContent = 'Bitte alle Felder ausfüllen.';
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/fuel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, liters, price_per_liter, odometer }),
-      });
-      if (res.ok) {
-        location.reload();
-      } else {
-        errorEl.textContent = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
-      }
-    } catch {
-      errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+</script>
+<script>
+  new Chart(document.getElementById('fuelChart'), {
+    type: 'line',
+    data: {
+      labels: {{ chart_labels | tojson }},
+      datasets: [{
+        label: 'Kosten pro Tankfüllung (€)',
+        data: {{ chart_costs | tojson }},
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' €' } } }
     }
   });
 </script>

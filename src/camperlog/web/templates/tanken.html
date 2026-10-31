@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% import "_icons.html" as icons %}
+
+{% block title %}Tanken – CamperLog{% endblock %}
+{% block heading %}Tanken{% endblock %}
+{% block subheading %}Alle Tankfüllungen verwalten.{% endblock %}
+
+{% block head_extra %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block header_actions %}
+<a href="#neue-tankfuellung" class="btn btn-primary">{{ icons.plus() }} Neue Tankfüllung</a>
+{% endblock %}
+
+{% block content %}
+
+<section class="stats-grid" aria-label="Kennzahlen">
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.fuel(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Gesamtkosten</div>
+      <div class="stat-value">{{ "%.2f"|format(total_cost) }} €</div>
+      {% if avg_price_per_liter is not none %}
+      <div class="stat-delta muted">Ø {{ "%.3f"|format(avg_price_per_liter) }} €/L</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.gauge(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Ø Verbrauch</div>
+      <div class="stat-value">{{ "%.1f"|format(avg_consumption) if avg_consumption is not none else "–" }} L/100km</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-top">
+      <span class="stat-icon" aria-hidden="true">{{ icons.route(20) }}</span>
+    </div>
+    <div>
+      <div class="stat-label">Tankfüllungen</div>
+      <div class="stat-value">{{ fuel_entries|length }}</div>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="neue-tankfuellung">
+  <div class="panel-header"><h2>Neue Tankfüllung erfassen</h2></div>
+  <form id="fuel-form" novalidate>
+    <div class="form-grid">
+      <div class="field">
+        <label for="fuel-date">Datum</label>
+        <div class="input-wrap">
+          <span class="field-icon" aria-hidden="true">{{ icons.calendar(15) }}</span>
+          <input type="date" id="fuel-date" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fuel-liters">Liter</label>
+        <div class="input-wrap">
+          <input type="number" id="fuel-liters" inputmode="decimal" step="0.01" min="0.1" placeholder="45.5" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fuel-price">€ / Liter</label>
+        <div class="input-wrap">
+          <input type="number" id="fuel-price" inputmode="decimal" step="0.001" min="0.001" placeholder="1.879" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fuel-odometer">km-Stand</label>
+        <div class="input-wrap">
+          <input type="number" id="fuel-odometer" inputmode="numeric" min="0" placeholder="12500" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">{{ icons.plus(15) }} Speichern</button>
+    </div>
+    <p class="form-error" id="fuel-error"></p>
+  </form>
+</section>
+
+<section class="content-grid">
+
+  <div class="panel">
+    <div class="panel-header"><h2>Alle Tankfüllungen</h2></div>
+    <div>
+      {% for e in fuel_entries %}
+      <div class="list-row">
+        <div class="row-main">
+          <div class="row-title">{{ e.date }}</div>
+          <div class="row-sub">{{ "%.1f"|format(e.liters) }} L · {{ "%.3f"|format(e.price_per_liter) }} €/L · {{ e.odometer }} km</div>
+        </div>
+        <div>
+          <div class="row-value">{{ "%.2f"|format(e.total_cost) }} €</div>
+          {% if e.consumption not in ("-", "?") %}
+          <div class="row-value-sub"><span class="pill{{ ' warn' if e.consumption|float > 9 else ' good' }}">{{ e.consumption }} L/100km</span></div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <p class="empty-row">Keine Tankfüllungen vorhanden.</p>
+      {% endfor %}
+    </div>
+    <div class="panel-footer">
+      <span>{{ fuel_entries|length }} Tankfüllung{{ "en" if fuel_entries|length != 1 }} insgesamt</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><h2>Tankkosten über Zeit</h2></div>
+    <div class="chart-area">
+      <div class="chart-wrap">
+        <canvas id="fuelChart"></canvas>
+      </div>
+      <div class="chart-legend"><span class="legend-dot" aria-hidden="true"></span> Kosten pro Tankfüllung</div>
+    </div>
+  </div>
+
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('fuel-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('fuel-error');
+    errorEl.textContent = '';
+
+    const date = document.getElementById('fuel-date').value;
+    const liters = parseFloat(document.getElementById('fuel-liters').value);
+    const price_per_liter = parseFloat(document.getElementById('fuel-price').value);
+    const odometer = parseInt(document.getElementById('fuel-odometer').value, 10);
+
+    if (!date || !liters || !price_per_liter || !odometer) {
+      errorEl.textContent = 'Bitte alle Felder ausfüllen.';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/fuel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, liters, price_per_liter, odometer }),
+      });
+      if (res.ok) {
+        camperlogFlash('Tankfüllung gespeichert', `${liters.toFixed(1)} L für ${(liters * price_per_liter).toFixed(2)} €`);
+        location.reload();
+      } else {
+        errorEl.textContent = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
+      }
+    } catch {
+      errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+    }
+  });
+</script>
+<script>
+  new Chart(document.getElementById('fuelChart'), {
+    type: 'line',
+    data: {
+      labels: {{ chart_labels | tojson }},
+      datasets: [{
+        label: 'Kosten pro Tankfüllung (€)',
+        data: {{ chart_costs | tojson }},
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => v + ' €' } } }
+    }
+  });
+</script>
+{% endblock %}
