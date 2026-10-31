@@ -15,6 +15,7 @@ from camperlog.services.campsites import (
 )
 from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
 from camperlog.services.geocoding import Geocoder, GeocodingUnavailable, get_geocoder
+from camperlog.services.map_data import retrospective
 from camperlog.services.trips import (
     add_stop,
     add_trip,
@@ -200,6 +201,7 @@ def _campsite_feature(campsite: Any, status: str) -> dict[str, Any]:
         "type": "Feature",
         "geometry": {"type": "Point", "coordinates": [campsite.lon, campsite.lat]},
         "properties": {
+            "kind": "campsite",
             "id": campsite.id,
             "name": campsite.name,
             "status": status,
@@ -212,17 +214,58 @@ def _campsite_feature(campsite: Any, status: str) -> dict[str, Any]:
     }
 
 
+def _trip_label(start: dt.date, end: dt.date) -> str:
+    return f"{start.isoformat()} – {end.isoformat()}"
+
+
 @router.get("/map")
 def map_data(
-    view: Literal["bookmarks"] = "bookmarks",
+    view: Literal["bookmarks", "retrospective"] = "bookmarks",
     session: Session = Depends(get_session),
 ) -> dict[str, Any]:
-    """The data of the map as GeoJSON. ``view=bookmarks``: the campsites that are
-    still only bookmarked."""
-    return {
-        "type": "FeatureCollection",
-        "features": [
+    """The data of the map as GeoJSON.
+
+    - ``bookmarks``: the campsites that are still only bookmarked.
+    - ``retrospective``: the visited campsites, the free-standing stops with
+      coordinates, and per trip a line through its places in order.
+    """
+    if view == "bookmarks":
+        features = [
             _campsite_feature(c, "bookmarked")
             for c in list_bookmarked_campsites(session)
-        ],
-    }
+        ]
+        return {"type": "FeatureCollection", "features": features}
+
+    past = retrospective(session)
+    features = [_campsite_feature(c, "visited") for c in past.campsites]
+    features += [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [p.lon, p.lat]},
+            "properties": {
+                "kind": "stop",
+                "id": p.stop_id,
+                "trip_id": p.trip_id,
+                "name": p.place_name,
+                "date": p.date.isoformat(),
+            },
+        }
+        for p in past.stops
+    ]
+    features += [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[lon, lat] for lat, lon in r.points],
+            },
+            "properties": {
+                "kind": "route",
+                "trip_id": r.trip_id,
+                "label": _trip_label(r.start_date, r.end_date),
+                "places": len(r.points),
+            },
+        }
+        for r in past.routes
+    ]
+    return {"type": "FeatureCollection", "features": features}
