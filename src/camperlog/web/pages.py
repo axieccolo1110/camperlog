@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from camperlog.consumption import consumption_labels
-from camperlog.database import get_all_fuel, get_all_trips
+from camperlog.db import Session, get_session
+from camperlog.services.expenses import list_fuel_entries
+from camperlog.services.trips import list_trips
 from camperlog.web.auth import require_login
 from camperlog.web.templating import templates
 
@@ -12,15 +14,15 @@ router = APIRouter(dependencies=[Depends(require_login)])
 
 
 @router.get("/", response_class=HTMLResponse)
-def dashboard(request: Request):
-    trips = get_all_trips()
-    fuel = get_all_fuel()
+def dashboard(request: Request, session: Session = Depends(get_session)):
+    trips = list_trips(session)
+    fuel = list_fuel_entries(session)
 
     total_km = sum(t.km for t in trips)
     total_fuel_cost = round(sum(e.total_cost for e in fuel), 2)
 
     fuel_chrono = sorted(fuel, key=lambda e: e.date)
-    chart_labels = [e.date for e in fuel_chrono]
+    chart_labels = [e.date.isoformat() for e in fuel_chrono]
     chart_costs = [round(e.total_cost, 2) for e in fuel_chrono]
 
     labels = consumption_labels(fuel)

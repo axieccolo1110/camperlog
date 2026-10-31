@@ -6,6 +6,8 @@ with Alembic (see ``migrations/``); nothing creates tables implicitly.
 
 import os
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from alembic import command
@@ -13,6 +15,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import Session
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS_DIR = PROJECT_ROOT / "migrations"
@@ -57,6 +60,20 @@ def dispose_engines() -> None:
         for engine in _engines.values():
             engine.dispose()
         _engines.clear()
+
+
+@contextmanager
+def session_scope() -> Iterator[Session]:
+    """A short-lived session, e.g. one per CLI command. Services commit themselves."""
+    # expire_on_commit=False keeps returned objects readable after the commit.
+    with Session(get_engine(), expire_on_commit=False) as session:
+        yield session
+
+
+def get_session() -> Iterator[Session]:
+    """FastAPI dependency: one session per request."""
+    with session_scope() as session:
+        yield session
 
 
 def alembic_config() -> Config:

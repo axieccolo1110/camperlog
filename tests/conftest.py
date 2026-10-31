@@ -1,5 +1,6 @@
 import pytest
-from camperlog.db import dispose_engines, upgrade_to_head
+
+from camperlog.db import dispose_engines, session_scope, upgrade_to_head
 
 
 @pytest.fixture
@@ -10,3 +11,10 @@ def test_db(tmp_path, monkeypatch):
     upgrade_to_head()
     yield test_db_path
     dispose_engines()
+
+
+@pytest.fixture
+def session(test_db):
+    """A session on the temporary test database, for testing services directly."""
+    with session_scope() as session:
+        yield session

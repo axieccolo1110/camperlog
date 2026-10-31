@@ -205,10 +205,10 @@ camperlog/
 │   ├── __init__.py
 │   ├── cli.py              # Click CLI commands
 │   ├── config.py           # required variables for the web server
-│   ├── db.py               # engine, schema check, migrations entry point
-│   ├── database.py         # SQLite operations
-│   ├── models.py           # data classes (Trip, FuelEntry)
-│   ├── commands/
+│   ├── db.py               # engine, sessions, schema check, migrations entry point
+│   ├── models.py           # domain classes = ORM mapping (Trip, FuelEntry)
+│   ├── services/           # business rules and queries (trips, expenses)
+│   ├── commands/           # one module per CLI group (trip, fuel, db, serve)
 │   └── web/
 │       ├── app.py          # FastAPI app, session middleware, /health
 │       ├── auth.py         # login/logout, "logged in" dependency
@@ -221,8 +221,8 @@ camperlog/
 ├── tests/
 │   ├── test_cli.py         # CLI tests
 │   ├── test_config.py      # start-up check of the web server
-│   ├── test_database.py    # database function tests
 │   ├── test_db.py          # engine, migrations, schema check
+│   ├── services/           # service tests
 │   └── integration/        # web tests (login, API, dashboard)
 ├── data/                   # database directory
 ├── docs/                   # documentation
@@ -278,7 +278,7 @@ make check  # if the Makefile is configured
 
 2. **Write code + tests:**
    ```bash
-   # New function in database.py or cli.py
+   # New function in services/ and a command in commands/
    # Tests in tests/
    ```
 
@@ -329,10 +329,9 @@ tests/
 │   ├── test_trip_list_empty
 │   └── test_trip_list_with_data
 │
-└── test_database.py     # test the database functions
-    ├── test_add_trip
-    ├── test_get_all_trips
-    └── test_empty_trips_list
+└── services/            # test the services
+    ├── test_trips.py
+    └── test_expenses.py
 ```
 
 ---

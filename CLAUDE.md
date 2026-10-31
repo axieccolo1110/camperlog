@@ -45,7 +45,7 @@ The check lives in `camperlog/config.py` (`require_web_config()`) and runs in `c
 
 The project has two entry points that share the same database layer:
 
-- **CLI** (`src/camperlog/cli.py`) — Click command group with `trip` and `fuel` subgroups plus a `serve` command. Calls database functions directly and uses `rich` for terminal output.
+- **CLI** (`src/camperlog/cli.py`) — only the Click root group (it checks the schema version) and the registration of the command groups. Each group lives in its own module in `src/camperlog/commands/`: `trip.py`, `fuel.py`, `db.py` (`camperlog db upgrade`) and `serve.py`; shared helpers are in `commands/common.py`. Commands open one session per invocation with `session_scope()`, call services and use `rich` for terminal output. To add a command group: new module in `commands/` exposing a Click group, register it in `cli.py`.
 - **Web app** (`src/camperlog/web/`) — FastAPI app, split into:
   - `app.py` — `create_app()` (lifespan checks the schema version, `SessionMiddleware`, routers, `GET /health`). `app` is built lazily on first access (module `__getattr__`), so importing the module needs no env vars; uvicorn target is `camperlog.web.app:app`.
   - `auth.py` — `GET/POST /login`, `POST /logout`, and the shared dependency `require_login`: pages redirect to `/login` (303), `/api/*` answers 401.
@@ -55,18 +55,16 @@ The project has two entry points that share the same database layer:
   - Public routes: `/health`, `/login`. Everything else needs a login.
 
 **Layer stack (top → bottom):**
-1. `cli.py` / `web/app.py` (+ `auth.py`, `pages.py`, `api.py`) — entry points
-2. `web/schemas.py` — Pydantic models for request validation and response serialization (separate from domain models)
-3. `models.py` — plain `@dataclass` types `Trip` and `FuelEntry` (pure data, no ORM coupling)
-4. `database.py` — SQLAlchemy 2.x ORM with `TripRow` / `FuelEntryRow` mapped classes and the CRUD functions
-5. `db.py` — infrastructure: one engine per process and database URL, schema version check, `upgrade_to_head()`
+1. `cli.py` + `commands/` / `web/app.py` (+ `auth.py`, `pages.py`, `api.py`) — entry points. They never import `sqlalchemy` or `camperlog.models` (enforced by `tests/test_layers.py`).
+2. `web/schemas.py` — Pydantic models for request validation and response serialization; read from domain objects via `from_attributes`
+3. `services/` — business rules and all queries: `trips.py`, `expenses.py` (for now only refuelings). Functions take a `Session` and commit themselves (one function = one transaction). Sessions are short-lived: one per request on the web (`Depends(get_session)`), one per command in the CLI (`session_scope()`).
+4. `models.py` — domain classes `Trip` and `FuelEntry`, each at once a dataclass and the ORM mapping (`MappedAsDataclass`, ADR 0004)
+5. `db.py` — infrastructure: one engine per process and database URL, sessions, schema version check, `upgrade_to_head()`
 
 **Database:** `db.py` reads the `DATABASE_URL` env var and falls back to `data/camperlog.db` (SQLite). The schema is managed by **Alembic** (`alembic.ini`, `migrations/`); nothing creates tables implicitly. Run `camperlog db upgrade` (or `alembic upgrade head`) after pulling schema changes. `make serve` and the Railway start command do this before the server starts. CLI commands (except `db` and `serve`), `camperlog serve` and the web app's lifespan abort with a hint to `camperlog db upgrade` if the database is not at the newest revision. Migrations take their URL from `camperlog.db`, with batch mode enabled for SQLite. Tests create their temporary database with `upgrade_to_head()` (see `tests/conftest.py`). A database that was created by the former `create_all` is adopted once with `alembic stamp 0001_baseline`.
 
 **Templates** (`web/templates/`): `base.html` holds the shared layout and all CSS (mobile-first, responsive, no CSS framework, no build step; tables turn into cards on phones via `data-label`). `login.html` and `dashboard.html` extend it. The dashboard is a server-rendered Jinja2 page with inline JS that POSTs to the REST API via `fetch()` and reloads. Chart.js (CDN) renders fuel cost history.
 
-**`src/camperlog/commands/`** is an empty placeholder package — no logic lives there yet. Don't add new commands there without first establishing a pattern; current CLI commands all live directly in `cli.py`.
-
-**Tests:** `tests/conftest.py` monkeypatches `DATABASE_URL` to a temporary SQLite file so all tests are isolated. Integration tests use FastAPI's `TestClient` (via `httpx`); `tests/integration/conftest.py` sets the web env vars via monkeypatch, builds the app with `create_app()` and offers `anon_client` (not logged in) and `api_client` (logged in).
+**Tests:** `tests/conftest.py` monkeypatches `DATABASE_URL` to a temporary SQLite file so all tests are isolated; its `session` fixture gives services tests (`tests/services/`) a session on that database. Dates in domain objects are `datetime.date`; the API and CLI convert from and to `YYYY-MM-DD` strings. Integration tests use FastAPI's `TestClient` (via `httpx`); `tests/integration/conftest.py` sets the web env vars via monkeypatch, builds the app with `create_app()` and offers `anon_client` (not logged in) and `api_client` (logged in).
 
 **Deployment:** Railway via `railway.toml` (nixpacks builder, `/health` healthcheck). Production uses PostgreSQL; local dev uses SQLite.

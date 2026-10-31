@@ -1,11 +1,12 @@
+import datetime as dt
+
 from camperlog.consumption import consumption_labels
 from camperlog.models import FuelEntry
 
 
 def _entry(odometer, liters, date="2026-01-01"):
     return FuelEntry(
-        id=1,
-        date=date,
+        date=dt.date.fromisoformat(date),
         liters=liters,
         price_per_liter=1.80,
         odometer=odometer,

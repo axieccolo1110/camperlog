@@ -1,6 +1,11 @@
 from datetime import date as _date
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _iso_date(value):
+    """Domain objects carry real dates; the API speaks ISO strings."""
+    return value.isoformat() if isinstance(value, _date) else value
 
 
 class TripCreate(BaseModel):
@@ -17,11 +22,15 @@ class TripCreate(BaseModel):
 
 
 class TripRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     origin: str
     destination: str
     km: int
     date: str
+
+    _date_to_iso = field_validator("date", mode="before")(_iso_date)
 
 
 class FuelEntryCreate(BaseModel):
@@ -38,9 +47,13 @@ class FuelEntryCreate(BaseModel):
 
 
 class FuelEntryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     date: str
     liters: float
     price_per_liter: float
     odometer: int
     total_cost: float
+
+    _date_to_iso = field_validator("date", mode="before")(_iso_date)

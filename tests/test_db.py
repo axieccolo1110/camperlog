@@ -1,3 +1,4 @@
+import datetime as dt
 import os
 import subprocess
 import sys
@@ -10,7 +11,9 @@ from sqlalchemy import inspect, text
 
 from camperlog import db
 from camperlog.cli import cli
-from camperlog.database import Base, add_trip, get_all_trips
+from camperlog.db import session_scope
+from camperlog.models import Base
+from camperlog.services.trips import add_trip, list_trips
 
 
 @pytest.fixture
@@ -60,11 +63,13 @@ def test_upgrade_creates_the_baseline_schema(fresh_db):
 
 def test_upgrade_twice_is_harmless(fresh_db):
     db.upgrade_to_head()
-    add_trip("München", "Berlin", 600, "2026-08-01")
+    with session_scope() as session:
+        add_trip(session, "München", "Berlin", 600, dt.date(2026, 8, 1))
 
     db.upgrade_to_head()
 
-    assert len(get_all_trips()) == 1
+    with session_scope() as session:
+        assert len(list_trips(session)) == 1
 
 
 def test_unmigrated_database_is_outdated(fresh_db):
@@ -95,10 +100,11 @@ def test_existing_production_database_can_be_stamped_without_data_loss(fresh_db)
 
     db.require_current_schema()
     db.upgrade_to_head()
-    trips = get_all_trips()
-    assert [(t.origin, t.destination, t.km) for t in trips] == [
-        ("München", "Berlin", 600)
-    ]
+    with session_scope() as session:
+        trips = list_trips(session)
+        assert [(t.origin, t.destination, t.km) for t in trips] == [
+            ("München", "Berlin", 600)
+        ]
 
 
 def test_orm_tables_match_the_migrated_schema(fresh_db):

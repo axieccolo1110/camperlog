@@ -266,3 +266,26 @@ def test_fuel_list_consumption_calculation(runner, test_db):
     assert "9.0" in result.output
     # aeltester Eintrag hat keinen Vorgaenger-km-Stand
     assert "?" not in result.output
+
+
+def test_trip_add_accepts_date_without_leading_zeros(runner, test_db):
+    """strptime accepts 2026-8-1, so the stored date must not crash on it."""
+    result = runner.invoke(
+        cli,
+        [
+            "trip",
+            "add",
+            "--from",
+            "München",
+            "--to",
+            "Berlin",
+            "--km",
+            "600",
+            "--date",
+            "2026-8-1",
+        ],
+    )
+
+    assert result.exit_code == 0
+    listing = runner.invoke(cli, ["trip", "list"])
+    assert "2026-08-01" in listing.output
