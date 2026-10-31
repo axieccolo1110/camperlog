@@ -16,13 +16,23 @@
     .popup-notes { margin-top: .35rem; white-space: pre-wrap; }
     .popup-meta { margin-top: .35rem; color: #555; font-size: .85rem; }
     .popup-link { display: inline-block; margin-top: .35rem; }
+    .view-switch { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
+    .route-toggles { margin-top: .75rem; }
+    .route-toggles h3 { font-size: .95rem; margin-bottom: .25rem; }
+    .swatch { display: inline-block; width: 1.4rem; height: .35rem; border-radius: 2px; margin-right: .35rem; vertical-align: middle; }
+    .map-legend { margin-top: .75rem; font-size: .85rem; color: #555; }
 {% endblock %}
 
 {% block content %}
 <section>
-  <h2>Vormerkliste</h2>
-  <p class="map-hint" id="map-hint" aria-live="polite">Lade Stellplätze …</p>
-  <div id="map" role="region" aria-label="Karte der vorgemerkten Stellplätze"></div>
+  <div class="view-switch" role="group" aria-label="Ansicht">
+    <button type="button" class="btn btn-small" data-view="bookmarks" aria-pressed="true">Vormerkliste</button>
+    <button type="button" class="btn btn-small" data-view="retrospective" aria-pressed="false">Rückschau</button>
+  </div>
+  <p class="map-hint" id="map-hint" aria-live="polite">Lade Karte …</p>
+  <div id="map" role="region" aria-label="Karte"></div>
+  <div class="route-toggles" id="route-toggles" hidden></div>
+  <p class="map-legend" id="map-legend" hidden></p>
 </section>
 {% endblock %}
 
@@ -65,27 +75,47 @@
     return box;
   }
 
-  async function showMap() {
-    if (typeof L === 'undefined') {
-      mapEl.hidden = true;
-      hint.textContent = 'Die Karte konnte nicht geladen werden (Kartenbibliothek nicht erreichbar).';
-      return;
-    }
-    const map = L.map('map').setView([50, 10], 4);
+  // Colours of the lines, one per trip (repeated if there are more trips).
+  const ROUTE_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#0891b2'];
+  const VIEWS = { bookmarks: '#vormerkliste', retrospective: '#rueckschau' };
+  const toggles = document.getElementById('route-toggles');
+  const legend = document.getElementById('map-legend');
+  const buttons = document.querySelectorAll('.view-switch button');
+  let map = null;
+  let layers = [];
+  let serial = 0;
+
+  function stopPopup(p) {
+    const box = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = p.name || 'Stopp';
+    box.append(name);
+    const meta = document.createElement('div');
+    meta.className = 'popup-meta';
+    meta.textContent = p.date;
+    box.append(meta);
+    return box;
+  }
+
+  function ensureMap() {
+    if (map) return map;
+    map = L.map('map').setView([50, 10], 4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
     }).addTo(map);
+    return map;
+  }
 
-    let data;
-    try {
-      const res = await fetch('/api/map?view=bookmarks');
-      if (!res.ok) throw new Error('map data failed');
-      data = await res.json();
-    } catch {
-      hint.textContent = 'Die Stellplätze konnten nicht geladen werden.';
-      return;
-    }
+  function clearView() {
+    layers.forEach((layer) => layer.remove());
+    layers = [];
+    toggles.replaceChildren();
+    toggles.hidden = true;
+    legend.hidden = true;
+  }
+
+  function showBookmarks(data) {
     if (data.features.length === 0) {
       hint.textContent = 'Keine vorgemerkten Stellplätze. Lege unter „Stellplätze“ einen an.';
       return;
@@ -93,11 +123,107 @@
     const layer = L.geoJSON(data, {
       onEachFeature: (feature, marker) => marker.bindPopup(popupContent(feature.properties)),
     }).addTo(map);
+    layers.push(layer);
     map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 12 });
     const n = data.features.length;
     hint.textContent = n === 1 ? '1 vorgemerkter Stellplatz.' : `${n} vorgemerkte Stellplätze.`;
   }
 
-  showMap();
+  function showRetrospective(data) {
+    const kind = (k) => data.features.filter((f) => f.properties.kind === k);
+    const campsites = kind('campsite');
+    const stops = kind('stop');
+    const routes = kind('route');
+    if (campsites.length + stops.length + routes.length === 0) {
+      hint.textContent = 'Noch keine besuchten Orte. Besuchte Stellplätze und Stopps mit Koordinaten erscheinen hier.';
+      return;
+    }
+    const bounds = L.latLngBounds([]);
+
+    const campsiteLayer = L.geoJSON({ type: 'FeatureCollection', features: campsites }, {
+      onEachFeature: (feature, marker) => marker.bindPopup(popupContent(feature.properties)),
+    }).addTo(map);
+    layers.push(campsiteLayer);
+    if (campsites.length) bounds.extend(campsiteLayer.getBounds());
+
+    // Free-standing stops: round orange dots, to tell them from campsite pins.
+    stops.forEach((f) => {
+      const [lon, lat] = f.geometry.coordinates;
+      const dot = L.circleMarker([lat, lon], {
+        radius: 8, color: '#92400e', weight: 2, fillColor: '#f59e0b', fillOpacity: 0.9,
+      }).bindPopup(stopPopup(f.properties)).addTo(map);
+      layers.push(dot);
+      bounds.extend([lat, lon]);
+    });
+
+    // One line per trip, off by default and switched on with a checkbox.
+    if (routes.length) {
+      const title = document.createElement('h3');
+      title.textContent = 'Reiserouten (Luftlinie)';
+      toggles.append(title);
+    }
+    routes.forEach((f, index) => {
+      const color = ROUTE_COLORS[index % ROUTE_COLORS.length];
+      const points = f.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+      points.forEach((point) => bounds.extend(point));
+      const line = L.polyline(points, { color, weight: 4, opacity: 0.8 });
+      const label = document.createElement('label');
+      label.className = 'form-check';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.dataset.tripId = f.properties.trip_id;
+      box.addEventListener('change', () => (box.checked ? line.addTo(map) : line.remove()));
+      const swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      swatch.style.background = color;
+      label.append(box, swatch, `${f.properties.label} (${f.properties.places} Orte)`);
+      toggles.append(label);
+      layers.push(line);
+    });
+    toggles.hidden = routes.length === 0;
+    legend.textContent = 'Pins: besuchte Stellplätze. Orange Punkte: Stopps ohne Stellplatz. ' +
+      'Linien verbinden die Orte einer Reise in ihrer Reihenfolge, sie zeigen keine Fahrstrecke.';
+    legend.hidden = false;
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+    const pins = campsites.length + stops.length;
+    hint.textContent = `${pins} besuchte Orte, ${routes.length} Reiseroute${routes.length === 1 ? '' : 'n'}.`;
+  }
+
+  async function show(view) {
+    const mine = ++serial;
+    buttons.forEach((button) => {
+      const active = button.dataset.view === view;
+      button.setAttribute('aria-pressed', String(active));
+      button.classList.toggle('btn-primary', active);
+      button.classList.toggle('btn-secondary', !active);
+    });
+    history.replaceState(null, '', VIEWS[view]);
+    clearView();
+    hint.textContent = 'Lade Karte …';
+    let data;
+    try {
+      const res = await fetch(`/api/map?view=${view}`);
+      if (!res.ok) throw new Error('map data failed');
+      data = await res.json();
+    } catch {
+      if (mine === serial) hint.textContent = 'Die Daten konnten nicht geladen werden.';
+      return;
+    }
+    if (mine !== serial) return;  // the user switched views meanwhile
+    ensureMap();
+    (view === 'retrospective' ? showRetrospective : showBookmarks)(data);
+  }
+
+  if (typeof L === 'undefined') {
+    mapEl.hidden = true;
+    hint.textContent = 'Die Karte konnte nicht geladen werden (Kartenbibliothek nicht erreichbar).';
+    buttons.forEach((button) => (button.disabled = true));
+  } else {
+    buttons.forEach((button) => button.addEventListener('click', () => show(button.dataset.view)));
+    const viewFromHash = () => (location.hash === VIEWS.retrospective ? 'retrospective' : 'bookmarks');
+    show(viewFromHash());
+    // Editing the address (only the part after #) does not reload the page.
+    window.addEventListener('hashchange', () => show(viewFromHash()));
+  }
 </script>
 {% endblock %}
