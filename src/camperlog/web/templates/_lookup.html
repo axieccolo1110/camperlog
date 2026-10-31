@@ -173,11 +173,13 @@
         e.preventDefault();
         highlight(Math.max(activeIndex - 1, 0));
       } else if (e.key === 'Enter') {
+        // Always swallow Enter while the dropdown is open, even with several
+        // matches and none highlighted yet — otherwise it falls through to a
+        // native form submit with nothing chosen.
+        e.preventDefault();
         if (activeIndex >= 0) {
-          e.preventDefault();
           choose(results[activeIndex]);
         } else if (results.length === 1) {
-          e.preventDefault();
           choose(results[0]);
         }
       } else if (e.key === 'Escape') {

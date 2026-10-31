@@ -125,3 +125,8 @@ def _assert_live_dropdown_wired(html: str) -> None:
     assert "'aria-autocomplete'" in html
     assert "ArrowDown" in html and "ArrowUp" in html
     assert "'Enter'" in html and "'Escape'" in html
+    # Regression guard: Enter must never fall through to a native form submit
+    # while the dropdown is open, even with several matches and none
+    # highlighted yet (no accidental submit with nothing chosen).
+    assert "e.key === 'Enter') {\n        // Always swallow Enter" in html
+    assert ".lookup-choices" not in html  # dead CSS from the old button list
