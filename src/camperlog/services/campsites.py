@@ -1,9 +1,11 @@
 """Campsites."""
 
+import datetime as dt
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from camperlog.models import CAMPSITE_STATUSES, Campsite
+from camperlog.models import CAMPSITE_STATUSES, Campsite, Stop
 from camperlog.services.errors import NotFoundError, ValidationError
 from camperlog.services.validation import check_coordinate_ranges
 
@@ -67,3 +69,29 @@ def get_campsite(session: Session, campsite_id: int) -> Campsite:
     if campsite is None:
         raise NotFoundError(f"Stellplatz {campsite_id} gibt es nicht.")
     return campsite
+
+
+def effective_statuses(
+    session: Session, today: dt.date | None = None
+) -> dict[int, str]:
+    """The status of every campsite (by id), computed on read.
+
+    A campsite is "visited" if its manual status is "visited" **or** a stop dated
+    today or earlier references it. A stop planned in the future changes nothing,
+    and the campsite becomes "visited" by itself once that day has come. (Setting
+    the status when saving would leave it "bookmarked" after the trip.)
+    """
+    today = today or dt.date.today()
+    visited_by_stops = set(
+        session.scalars(
+            select(Stop.campsite_id)
+            .where(Stop.campsite_id.is_not(None), Stop.date <= today)
+            .distinct()
+        )
+    )
+    return {
+        c.id: "visited"
+        if c.status == "visited" or c.id in visited_by_stops
+        else c.status
+        for c in list_campsites(session)
+    }

@@ -25,10 +25,10 @@
     </thead>
     <tbody>
       {% for s in trip.stops %}
-      <tr data-stop-id="{{ s.id }}" data-date="{{ s.date }}" data-place="{{ s.place_name or '' }}" data-lat="{{ s.lat if s.lat is not none else '' }}" data-lon="{{ s.lon if s.lon is not none else '' }}">
+      <tr data-stop-id="{{ s.id }}" data-date="{{ s.date }}" data-place="{{ s.place_name or '' }}" data-lat="{{ s.lat if s.lat is not none else '' }}" data-lon="{{ s.lon if s.lon is not none else '' }}" data-campsite-id="{{ s.campsite_id or '' }}">
         <td data-label="Datum">{{ s.date }}</td>
-        <td data-label="Ort">{{ s.place_name or "-" }}</td>
-        <td data-label="Koordinaten">{{ (s.lat ~ ", " ~ s.lon) if s.lat is not none else "-" }}</td>
+        <td data-label="Ort">{{ s.effective_place_name or "-" }}{% if s.campsite_id %} <span class="badge">Stellplatz</span>{% endif %}</td>
+        <td data-label="Koordinaten">{{ (s.effective_lat ~ ", " ~ s.effective_lon) if s.effective_lat is not none else "-" }}</td>
         <td class="actions">
           <button type="button" class="btn btn-secondary btn-small edit-stop">Bearbeiten</button>
           <button type="button" class="btn btn-danger btn-small delete-stop">Löschen</button>
@@ -49,6 +49,13 @@
         <div class="form-group">
           <label for="edit-date">Datum</label>
           <input type="date" id="edit-date" min="{{ trip.start_date }}" max="{{ trip.end_date }}" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-campsite">Stellplatz (optional)</label>
+          <select id="edit-campsite">
+            <option value="">– eigener Ort –</option>
+            {% for c in campsites %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
         </div>
         <div class="form-group">
           <label for="edit-place">Ort (optional)</label>
@@ -79,6 +86,13 @@
         <div class="form-group">
           <label for="stop-date">Datum</label>
           <input type="date" id="stop-date" min="{{ trip.start_date }}" max="{{ trip.end_date }}" value="{{ trip.start_date }}" required>
+        </div>
+        <div class="form-group">
+          <label for="stop-campsite">Stellplatz (optional)</label>
+          <select id="stop-campsite">
+            <option value="">– eigener Ort –</option>
+            {% for c in campsites %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
         </div>
         <div class="form-group">
           <label for="stop-place">Ort (optional)</label>
@@ -239,6 +253,23 @@
     return { settled: () => pending };
   }
 
+  // With a campsite chosen the stop takes over its place: the own place fields are
+  // cleared and disabled. Returns a function that tells if a campsite is chosen.
+  function bindCampsite(selectId, fieldIds, boxId) {
+    const select = document.getElementById(selectId);
+    const fields = fieldIds.map((id) => document.getElementById(id));
+    const apply = () => {
+      const chosen = select.value !== '';
+      fields.forEach((field) => {
+        if (chosen) field.value = '';
+        field.disabled = chosen;
+      });
+      if (chosen) document.getElementById(boxId).replaceChildren();
+    };
+    select.addEventListener('change', apply);
+    return { apply, campsiteId: () => (select.value ? parseInt(select.value, 10) : null) };
+  }
+
   // Sends a JSON request. Returns true on success, otherwise shows the server's
   // message (or a generic one) in errorEl and returns false.
   async function send(method, url, payload, errorEl) {
@@ -265,6 +296,7 @@
   // --- stops: adding (always available) --------------------------------------
   const stopError = document.getElementById('stop-error');
   const addLookup = attachLookup('stop-place', 'stop-lat', 'stop-lon', 'stop-lookup');
+  const addCampsite = bindCampsite('stop-campsite', ['stop-place', 'stop-lat', 'stop-lon'], 'stop-lookup');
 
   document.getElementById('stop-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -279,6 +311,7 @@
       place_name: document.getElementById('stop-place').value.trim() || null,
       lat: numberOrNull('stop-lat'),
       lon: numberOrNull('stop-lon'),
+      campsite_id: addCampsite.campsiteId(),
     };
     if (await send('POST', `/api/trips/${TRIP_ID}/stops`, payload, stopError)) {
       location.reload();
@@ -289,6 +322,7 @@
   const editCard = document.getElementById('stop-edit-card');
   const editError = document.getElementById('edit-error');
   const editLookup = attachLookup('edit-place', 'edit-lat', 'edit-lon', 'edit-lookup');
+  const editCampsite = bindCampsite('edit-campsite', ['edit-place', 'edit-lat', 'edit-lon'], 'edit-lookup');
   let editingStopId = null;
 
   function closeEditForm() {
@@ -305,6 +339,8 @@
       document.getElementById('edit-place').value = row.place;
       document.getElementById('edit-lat').value = row.lat;
       document.getElementById('edit-lon').value = row.lon;
+      document.getElementById('edit-campsite').value = row.campsiteId;
+      editCampsite.apply();
       editError.textContent = '';
       editCard.hidden = false;
       editCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -325,6 +361,7 @@
       place_name: document.getElementById('edit-place').value.trim() || null,
       lat: numberOrNull('edit-lat'),
       lon: numberOrNull('edit-lon'),
+      campsite_id: editCampsite.campsiteId(),
     };
     if (await send('PUT', `/api/stops/${editingStopId}`, payload, editError)) {
       location.reload();

@@ -5,7 +5,7 @@ import datetime as dt
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from camperlog.models import Stop, Trip
+from camperlog.models import Campsite, Stop, Trip
 from camperlog.services.errors import NotFoundError, ValidationError
 from camperlog.services.validation import check_coordinate_ranges
 
@@ -38,6 +38,30 @@ def _clean_place(place_name: str | None) -> str | None:
     return (place_name or "").strip() or None
 
 
+def _resolve_place(
+    session: Session,
+    campsite_id: int | None,
+    place_name: str | None,
+    lat: float | None,
+    lon: float | None,
+) -> Campsite | None:
+    """A stop is either tied to a campsite or has a place of its own, not both.
+
+    Returns the campsite (after checking that it exists), ``None`` without one.
+    """
+    if campsite_id is None:
+        return None
+    if _clean_place(place_name) or lat is not None or lon is not None:
+        raise ValidationError(
+            "Ein Stopp mit Stellplatz übernimmt dessen Ort. "
+            "Ortsname und Koordinaten bitte weglassen."
+        )
+    campsite = session.get(Campsite, campsite_id)
+    if campsite is None:
+        raise NotFoundError(f"Stellplatz {campsite_id} gibt es nicht.")
+    return campsite
+
+
 def add_trip(
     session: Session,
     start_date: dt.date,
@@ -56,7 +80,7 @@ def list_trips(session: Session) -> list[Trip]:
     """All trips with their stops, newest first."""
     query = (
         select(Trip)
-        .options(selectinload(Trip.stops))
+        .options(selectinload(Trip.stops).selectinload(Stop.campsite))
         .order_by(Trip.start_date.desc(), Trip.id.desc())
         .execution_options(populate_existing=True)
     )
@@ -69,7 +93,7 @@ def get_trip(session: Session, trip_id: int) -> Trip:
     # stale stop list (stops are inserted by trip_id, not through the collection).
     query = (
         select(Trip)
-        .options(selectinload(Trip.stops))
+        .options(selectinload(Trip.stops).selectinload(Stop.campsite))
         .where(Trip.id == trip_id)
         .execution_options(populate_existing=True)
     )
@@ -119,15 +143,18 @@ def add_stop(
     place_name: str | None = None,
     lat: float | None = None,
     lon: float | None = None,
+    campsite_id: int | None = None,
 ) -> Stop:
-    """Add a free-standing stop to a trip.
+    """Add a stop to a trip: free-standing, or tied to a campsite.
 
     The date must lie within the period of the trip (both ends included).
-    Coordinates are given as a pair or not at all. A new stop goes to the end of
-    its day: stops sort by date, and ``position`` (order of entry) decides only for
-    the same date.
+    Coordinates are given as a pair or not at all. With a campsite the stop takes
+    over its place, so own name and coordinates must be left out. A new stop goes
+    to the end of its day: stops sort by date, and ``position`` (order of entry)
+    decides only for the same date.
     """
     trip = get_trip(session, trip_id)
+    campsite = _resolve_place(session, campsite_id, place_name, lat, lon)
     _check_stop_fields(trip, date, lat, lon)
     last_position = session.scalar(
         select(func.max(Stop.position)).where(Stop.trip_id == trip_id)
@@ -139,6 +166,7 @@ def add_stop(
         place_name=_clean_place(place_name),
         lat=lat,
         lon=lon,
+        campsite_id=campsite.id if campsite else None,
     )
     session.add(stop)
     session.commit()
@@ -148,7 +176,10 @@ def add_stop(
 def get_stop(session: Session, stop_id: int) -> Stop:
     """A stop. Raises NotFoundError if it does not exist."""
     stop = session.scalars(
-        select(Stop).where(Stop.id == stop_id).execution_options(populate_existing=True)
+        select(Stop)
+        .options(selectinload(Stop.campsite))
+        .where(Stop.id == stop_id)
+        .execution_options(populate_existing=True)
     ).one_or_none()
     if stop is None:
         raise NotFoundError(f"Stopp {stop_id} gibt es nicht.")
@@ -162,18 +193,24 @@ def update_stop(
     place_name: str | None,
     lat: float | None,
     lon: float | None,
+    campsite_id: int | None = None,
 ) -> Stop:
-    """Replace date, place name and coordinates of a stop.
+    """Replace date, place and campsite of a stop.
 
     The date still has to lie within the trip. The position (order of entry) stays.
+    The same rule as for a new stop applies: a campsite or an own place, not both.
     """
     stop = get_stop(session, stop_id)
     trip = get_trip(session, stop.trip_id)
+    campsite = _resolve_place(session, campsite_id, place_name, lat, lon)
     _check_stop_fields(trip, date, lat, lon)
     stop.date = date
     stop.place_name = _clean_place(place_name)
     stop.lat = lat
     stop.lon = lon
+    # Set the relationship, not only the id: a campsite that is already loaded
+    # would otherwise stay attached to the stop in this session.
+    stop.campsite = campsite
     session.commit()
     return stop
 

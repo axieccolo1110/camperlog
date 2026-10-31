@@ -14,7 +14,7 @@
       {% for c in campsites %}
       <tr>
         <td data-label="Name">{{ c.name }}</td>
-        <td data-label="Status">{{ status_label(c.status) }}</td>
+        <td data-label="Status">{{ status_label(statuses[c.id]) }}</td>
         <td data-label="Koordinaten">{{ c.lat }}, {{ c.lon }}</td>
         <td data-label="Spielplatz">{{ "ja" if c.playground else "-" }}</td>
         <td data-label="Haustiere">{{ "ja" if c.pets_allowed else "-" }}</td>

@@ -78,7 +78,7 @@ Decisions:
 
 - **Order of stops:** sorted by `date`, for the same date by `position` (order of entry within the day). Manual reordering is not planned for now. The date of a stop must lie within the period of its trip; `services/trips.py` checks this.
 - **Deleting:** a trip takes its stops with it. The service rejects deleting a campsite that stops reference.
-- **Location of a stop:** with a campsite reference, the campsite's location applies. Coordinates of the stop itself are then ignored.
+- **Location of a stop:** a stop is either tied to a campsite or has a place of its own, not both. With a campsite reference the campsite's name and coordinates apply (`Stop.effective_place_name/lat/lon`). The service rejects a stop that has a campsite and an own place name or coordinates at the same time, instead of silently ignoring one of them.
 - **Effective status of a campsite** is computed on read: "visited" if the manual status is "visited" **or** a stop with a date ≤ today references it. If the status were set on save, a stop planned in the future would wrongly stay "bookmarked" after its date.
 - **Refueling:** one row in `expenses` with the fuel fields filled. `services/expenses.py` enforces: category Fuel exactly when liters, price per liter and odometer reading are set. The amount of a fuel expense is computed from liters × price.
 - **Category Fuel** is created by a migration, with `protected = true`. The service rejects renaming and deleting protected categories. Other categories can only be deleted if no expense uses them.
