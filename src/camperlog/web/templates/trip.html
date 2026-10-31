@@ -41,9 +41,38 @@
   </table>
 </section>
 
+<section id="stop-edit-card" hidden>
+  <div class="form-card form-card-editing">
+    <h2>Stopp bearbeiten</h2>
+    <form id="stop-edit-form" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit-date">Datum</label>
+          <input type="date" id="edit-date" min="{{ trip.start_date }}" max="{{ trip.end_date }}" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-place">Ort (optional)</label>
+          <input type="text" id="edit-place" autocomplete="off">
+        </div>
+        <div class="form-group km">
+          <label for="edit-lat">Breite (optional)</label>
+          <input type="number" id="edit-lat" inputmode="decimal" step="any" min="-90" max="90">
+        </div>
+        <div class="form-group km">
+          <label for="edit-lon">Länge (optional)</label>
+          <input type="number" id="edit-lon" inputmode="decimal" step="any" min="-180" max="180">
+        </div>
+        <button type="submit" class="btn btn-primary">Änderungen speichern</button>
+        <button type="button" class="btn btn-secondary" id="edit-cancel">Abbrechen</button>
+      </div>
+      <p class="form-error" id="edit-error"></p>
+    </form>
+  </div>
+</section>
+
 <section>
   <div class="form-card">
-    <h2 id="stop-form-title">Neuen Stopp erfassen</h2>
+    <h2>Neuen Stopp erfassen</h2>
     <form id="stop-form" novalidate>
       <div class="form-row">
         <div class="form-group">
@@ -63,7 +92,6 @@
           <input type="number" id="stop-lon" inputmode="decimal" step="any" min="-180" max="180" placeholder="10.992">
         </div>
         <button type="submit" class="btn btn-primary" id="stop-submit">Stopp speichern</button>
-        <button type="button" class="btn btn-secondary" id="stop-cancel" hidden>Abbrechen</button>
       </div>
       <p class="form-error" id="stop-error"></p>
     </form>
@@ -105,6 +133,11 @@
   const TRIP_ID = {{ trip.id }};
   const TRIP_PERIOD = '{{ trip.start_date }} – {{ trip.end_date }}';
 
+  function numberOrNull(id) {
+    const value = document.getElementById(id).value;
+    return value ? parseFloat(value) : null;
+  }
+
   // Sends a JSON request. Returns true on success, otherwise shows the server's
   // message (or a generic one) in errorEl and returns false.
   async function send(method, url, payload, errorEl) {
@@ -128,60 +161,69 @@
     return false;
   }
 
-  // --- stops: create and edit with the same form -----------------------------
-  const stopForm = document.getElementById('stop-form');
+  // --- stops: adding (always available) --------------------------------------
   const stopError = document.getElementById('stop-error');
-  const stopDate = document.getElementById('stop-date');
-  const stopPlace = document.getElementById('stop-place');
-  const stopLat = document.getElementById('stop-lat');
-  const stopLon = document.getElementById('stop-lon');
-  const stopSubmit = document.getElementById('stop-submit');
-  const stopCancel = document.getElementById('stop-cancel');
-  const stopTitle = document.getElementById('stop-form-title');
+
+  document.getElementById('stop-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = document.getElementById('stop-date').value;
+    if (!date) {
+      stopError.textContent = 'Bitte ein Datum angeben.';
+      return;
+    }
+    const payload = {
+      date,
+      place_name: document.getElementById('stop-place').value.trim() || null,
+      lat: numberOrNull('stop-lat'),
+      lon: numberOrNull('stop-lon'),
+    };
+    if (await send('POST', `/api/trips/${TRIP_ID}/stops`, payload, stopError)) {
+      location.reload();
+    }
+  });
+
+  // --- stops: editing (own form, shown on demand) -------------------------------
+  const editCard = document.getElementById('stop-edit-card');
+  const editError = document.getElementById('edit-error');
   let editingStopId = null;
 
-  function resetStopForm() {
+  function closeEditForm() {
     editingStopId = null;
-    stopForm.reset();
-    stopTitle.textContent = 'Neuen Stopp erfassen';
-    stopSubmit.textContent = 'Stopp speichern';
-    stopCancel.hidden = true;
-    stopError.textContent = '';
+    editCard.hidden = true;
+    editError.textContent = '';
   }
 
   document.querySelectorAll('.edit-stop').forEach((button) => {
     button.addEventListener('click', () => {
       const row = button.closest('tr').dataset;
       editingStopId = row.stopId;
-      stopDate.value = row.date;
-      stopPlace.value = row.place;
-      stopLat.value = row.lat;
-      stopLon.value = row.lon;
-      stopTitle.textContent = 'Stopp bearbeiten';
-      stopSubmit.textContent = 'Änderungen speichern';
-      stopCancel.hidden = false;
-      stopError.textContent = '';
-      stopForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('edit-date').value = row.date;
+      document.getElementById('edit-place').value = row.place;
+      document.getElementById('edit-lat').value = row.lat;
+      document.getElementById('edit-lon').value = row.lon;
+      editError.textContent = '';
+      editCard.hidden = false;
+      editCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   });
-  stopCancel.addEventListener('click', resetStopForm);
+  document.getElementById('edit-cancel').addEventListener('click', closeEditForm);
 
-  stopForm.addEventListener('submit', async (e) => {
+  document.getElementById('stop-edit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!stopDate.value) {
-      stopError.textContent = 'Bitte ein Datum angeben.';
+    const date = document.getElementById('edit-date').value;
+    if (!date) {
+      editError.textContent = 'Bitte ein Datum angeben.';
       return;
     }
     const payload = {
-      date: stopDate.value,
-      place_name: stopPlace.value.trim() || null,
-      lat: stopLat.value ? parseFloat(stopLat.value) : null,
-      lon: stopLon.value ? parseFloat(stopLon.value) : null,
+      date,
+      place_name: document.getElementById('edit-place').value.trim() || null,
+      lat: numberOrNull('edit-lat'),
+      lon: numberOrNull('edit-lon'),
     };
-    const ok = editingStopId
-      ? await send('PUT', `/api/stops/${editingStopId}`, payload, stopError)
-      : await send('POST', `/api/trips/${TRIP_ID}/stops`, payload, stopError);
-    if (ok) location.reload();
+    if (await send('PUT', `/api/stops/${editingStopId}`, payload, editError)) {
+      location.reload();
+    }
   });
 
   document.querySelectorAll('.delete-stop').forEach((button) => {
