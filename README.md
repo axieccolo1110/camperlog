@@ -18,6 +18,7 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 - ✅ Chronological sorting (newest first)
 - ✅ Add stops to a trip (date within the trip, optional place name and coordinates)
 - ✅ Edit and delete trips and stops (CLI and web, deleting asks for confirmation)
+- ✅ Type a place name for a stop and the coordinates are looked up (OpenStreetMap Nominatim, asked from the server; one match is filled in, several are offered, a failed lookup never blocks the form)
 
 ### Refuelings (fuel logging)
 - ✅ Document refuelings with costs
@@ -309,6 +310,7 @@ camperlog/
 - `fastapi`, `uvicorn`, `jinja2` – web server and dashboard
 - `itsdangerous` – signature of the session cookies
 - `python-multipart` – login form
+- `httpx` – coordinate lookup for place names
 - `alembic` – database migrations
 
 **Development:**

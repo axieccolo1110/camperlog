@@ -2,11 +2,12 @@
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 
 from camperlog.db import Session, get_session
 from camperlog.services.campsites import add_campsite, list_campsites
 from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
+from camperlog.services.geocoding import Geocoder, GeocodingUnavailable, get_geocoder
 from camperlog.services.trips import (
     add_stop,
     add_trip,
@@ -23,6 +24,8 @@ from camperlog.web.schemas import (
     CampsiteRead,
     FuelEntryCreate,
     FuelEntryRead,
+    GeocodeResponse,
+    PlaceRead,
     StopCreate,
     StopRead,
     TripCreate,
@@ -146,3 +149,29 @@ def create_fuel(body: FuelEntryCreate, session: Session = Depends(get_session)):
         body.odometer,
     )
     return FuelEntryRead.model_validate(entry)
+
+
+@router.get("/geocode", response_model=GeocodeResponse)
+def geocode(
+    q: str = Query("", max_length=200),
+    geocoder: Geocoder = Depends(get_geocoder),
+):
+    """Look up coordinates for a place name. Never fails: if the service cannot be
+    reached the answer says so (``unavailable``) and the form keeps working."""
+    try:
+        places = geocoder.search(q)
+    except GeocodingUnavailable:
+        return GeocodeResponse(results=[], unavailable=True)
+    return GeocodeResponse(
+        results=[
+            PlaceRead(
+                name=p.name,
+                region=p.region,
+                country=p.country,
+                lat=p.lat,
+                lon=p.lon,
+                label=p.label,
+            )
+            for p in places
+        ]
+    )
