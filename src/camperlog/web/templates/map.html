@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Karte – CamperLog{% endblock %}
+{% block heading %}Karte{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+{% endblock %}
+
+{% block style %}
+    #map { height: 65vh; min-height: 20rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .map-hint { margin-bottom: .75rem; color: #555; }
+    .popup-notes { margin-top: .35rem; white-space: pre-wrap; }
+    .popup-meta { margin-top: .35rem; color: #555; font-size: .85rem; }
+    .popup-link { display: inline-block; margin-top: .35rem; }
+{% endblock %}
+
+{% block content %}
+<section>
+  <h2>Vormerkliste</h2>
+  <p class="map-hint" id="map-hint" aria-live="polite">Lade Stellplätze …</p>
+  <div id="map" role="region" aria-label="Karte der vorgemerkten Stellplätze"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const hint = document.getElementById('map-hint');
+  const mapEl = document.getElementById('map');
+
+  // Texts from the database are inserted as text, never as HTML.
+  function popupContent(p) {
+    const box = document.createElement('div');
+    const name = document.createElement('strong');
+    name.textContent = p.name;
+    box.append(name);
+    if (p.notes) {
+      const notes = document.createElement('div');
+      notes.className = 'popup-notes';
+      notes.textContent = p.notes;
+      box.append(notes);
+    }
+    const flags = [];
+    if (p.playground) flags.push('Spielplatz');
+    if (p.pets_allowed) flags.push('Haustiere erlaubt');
+    if (flags.length) {
+      const meta = document.createElement('div');
+      meta.className = 'popup-meta';
+      meta.textContent = flags.join(' · ');
+      box.append(meta);
+    }
+    // The server only stores http(s) links; checked again before it becomes an href.
+    if (p.external_url && /^https?:\/\//i.test(p.external_url)) {
+      const link = document.createElement('a');
+      link.className = 'popup-link';
+      link.href = p.external_url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Externer Link';
+      box.append(link);
+    }
+    return box;
+  }
+
+  async function showMap() {
+    if (typeof L === 'undefined') {
+      mapEl.hidden = true;
+      hint.textContent = 'Die Karte konnte nicht geladen werden (Kartenbibliothek nicht erreichbar).';
+      return;
+    }
+    const map = L.map('map').setView([50, 10], 4);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
+    }).addTo(map);
+
+    let data;
+    try {
+      const res = await fetch('/api/map?view=bookmarks');
+      if (!res.ok) throw new Error('map data failed');
+      data = await res.json();
+    } catch {
+      hint.textContent = 'Die Stellplätze konnten nicht geladen werden.';
+      return;
+    }
+    if (data.features.length === 0) {
+      hint.textContent = 'Keine vorgemerkten Stellplätze. Lege unter „Stellplätze“ einen an.';
+      return;
+    }
+    const layer = L.geoJSON(data, {
+      onEachFeature: (feature, marker) => marker.bindPopup(popupContent(feature.properties)),
+    }).addTo(map);
+    map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 12 });
+    const n = data.features.length;
+    hint.textContent = n === 1 ? '1 vorgemerkter Stellplatz.' : `${n} vorgemerkte Stellplätze.`;
+  }
+
+  showMap();
+</script>
+{% endblock %}

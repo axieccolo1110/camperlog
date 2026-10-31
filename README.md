@@ -34,6 +34,7 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 ### Campsites
 - ✅ Collect campsites independently of trips: name, coordinates, status (visited/bookmarked), notes, playground, pets allowed, external link (e.g. Park4Night)
 - ✅ List and form in the web (`/campsites`) and in the CLI
+- ✅ Map (`/map`) with your bookmarked campsites as pins; click a pin for name, notes, flags and the external link (Leaflet and OpenStreetMap tiles from a CDN, so the map needs an internet connection)
 
 ### Data management
 - 💾 SQLite database (persistent, local)

@@ -217,3 +217,42 @@ def test_default_today_is_the_real_today(session):
     _stop_on(session, campsite, dt.date.today())
 
     assert effective_statuses(session)[campsite.id] == "visited"
+
+
+# --- bookmarked campsites (map) -----------------------------------------------
+
+from camperlog.services.campsites import list_bookmarked_campsites  # noqa: E402
+
+
+def test_only_bookmarked_campsites_are_listed(session):
+    add_campsite(session, "Besucht", 45.0, 10.0, "visited")
+    bookmarked = add_campsite(session, "Vorgemerkt", 46.0, 11.0)
+
+    assert [c.id for c in list_bookmarked_campsites(session, TODAY)] == [bookmarked.id]
+
+
+def test_a_campsite_with_a_past_stop_is_no_longer_bookmarked(session):
+    campsite = add_campsite(session, "Wiese", 45.0, 10.0)
+    _stop_on(session, campsite, dt.date(2026, 8, 10))
+
+    assert list_bookmarked_campsites(session, TODAY) == []
+    assert [c.id for c in list_bookmarked_campsites(session, dt.date(2026, 8, 1))] == [
+        campsite.id
+    ]
+
+
+def test_a_campsite_with_a_future_stop_stays_bookmarked(session):
+    campsite = add_campsite(session, "Wiese", 45.0, 10.0)
+    _stop_on(session, campsite, dt.date(2026, 11, 1))
+
+    assert [c.id for c in list_bookmarked_campsites(session, TODAY)] == [campsite.id]
+
+
+def test_bookmarked_campsites_are_sorted_by_name(session):
+    for name in ["Zeltplatz", "Almwiese"]:
+        add_campsite(session, name, 45.0, 10.0)
+
+    assert [c.name for c in list_bookmarked_campsites(session)] == [
+        "Almwiese",
+        "Zeltplatz",
+    ]

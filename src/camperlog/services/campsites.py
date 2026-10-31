@@ -95,3 +95,12 @@ def effective_statuses(
         else c.status
         for c in list_campsites(session)
     }
+
+
+def list_bookmarked_campsites(
+    session: Session, today: dt.date | None = None
+) -> list[Campsite]:
+    """The campsites that are still only bookmarked (the effective status counts:
+    one that a stop dated today or earlier references is visited already)."""
+    statuses = effective_statuses(session, today)
+    return [c for c in list_campsites(session) if statuses[c.id] == "bookmarked"]

@@ -1,13 +1,16 @@
 """JSON API under ``/api``. All routes require a login."""
 
 import datetime as dt
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
 
 from camperlog.db import Session, get_session
+from camperlog.labels import status_label
 from camperlog.services.campsites import (
     add_campsite,
     effective_statuses,
+    list_bookmarked_campsites,
     list_campsites,
 )
 from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
@@ -189,3 +192,37 @@ def geocode(
             for p in places
         ]
     )
+
+
+def _campsite_feature(campsite: Any, status: str) -> dict[str, Any]:
+    """A campsite as a GeoJSON feature. Note: GeoJSON wants [longitude, latitude]."""
+    return {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [campsite.lon, campsite.lat]},
+        "properties": {
+            "id": campsite.id,
+            "name": campsite.name,
+            "status": status,
+            "status_label": status_label(status),
+            "notes": campsite.notes,
+            "playground": campsite.playground,
+            "pets_allowed": campsite.pets_allowed,
+            "external_url": campsite.external_url,
+        },
+    }
+
+
+@router.get("/map")
+def map_data(
+    view: Literal["bookmarks"] = "bookmarks",
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """The data of the map as GeoJSON. ``view=bookmarks``: the campsites that are
+    still only bookmarked."""
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            _campsite_feature(c, "bookmarked")
+            for c in list_bookmarked_campsites(session)
+        ],
+    }
