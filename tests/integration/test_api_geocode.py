@@ -100,6 +100,7 @@ def test_trip_page_wires_the_lookup_into_both_forms(api_client):
     assert "/api/geocode?q=" in html
     assert "https://www.openstreetmap.org/copyright" in html
     assert "OpenStreetMap-Mitwirkende" in html
+    _assert_live_dropdown_wired(html)
 
 
 def test_campsites_page_wires_the_lookup_into_the_form(api_client):
@@ -113,3 +114,14 @@ def test_campsites_page_wires_the_lookup_into_the_form(api_client):
     assert "/api/geocode?q=" in html
     assert "https://www.openstreetmap.org/copyright" in html
     assert "OpenStreetMap-Mitwirkende" in html
+    _assert_live_dropdown_wired(html)
+
+
+def _assert_live_dropdown_wired(html: str) -> None:
+    """F3.9: a debounced, keyboard-accessible dropdown lives on both pages."""
+    assert "DEBOUNCE_MS" in html
+    assert "lookup-dropdown" in html
+    assert "'combobox'" in html
+    assert "'aria-autocomplete'" in html
+    assert "ArrowDown" in html and "ArrowUp" in html
+    assert "'Enter'" in html and "'Escape'" in html

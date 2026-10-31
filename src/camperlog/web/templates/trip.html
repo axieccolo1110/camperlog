@@ -169,7 +169,7 @@
 
   // With a campsite chosen the stop takes over its place: the own place fields are
   // cleared and disabled. Returns a function that tells if a campsite is chosen.
-  function bindCampsite(selectId, fieldIds, boxId) {
+  function bindCampsite(selectId, fieldIds, boxId, lookup) {
     const select = document.getElementById(selectId);
     const fields = fieldIds.map((id) => document.getElementById(id));
     const apply = () => {
@@ -178,7 +178,10 @@
         if (chosen) field.value = '';
         field.disabled = chosen;
       });
-      if (chosen) document.getElementById(boxId).replaceChildren();
+      if (chosen) {
+        document.getElementById(boxId).replaceChildren();
+        lookup.close();
+      }
     };
     select.addEventListener('change', apply);
     return { apply, campsiteId: () => (select.value ? parseInt(select.value, 10) : null) };
@@ -210,7 +213,7 @@
   // --- stops: adding (always available) --------------------------------------
   const stopError = document.getElementById('stop-error');
   const addLookup = attachLookup('stop-place', 'stop-lat', 'stop-lon', 'stop-lookup');
-  const addCampsite = bindCampsite('stop-campsite', ['stop-place', 'stop-lat', 'stop-lon'], 'stop-lookup');
+  const addCampsite = bindCampsite('stop-campsite', ['stop-place', 'stop-lat', 'stop-lon'], 'stop-lookup', addLookup);
 
   document.getElementById('stop-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -238,7 +241,7 @@
   const editCard = document.getElementById('stop-edit-card');
   const editError = document.getElementById('edit-error');
   const editLookup = attachLookup('edit-place', 'edit-lat', 'edit-lon', 'edit-lookup');
-  const editCampsite = bindCampsite('edit-campsite', ['edit-place', 'edit-lat', 'edit-lon'], 'edit-lookup');
+  const editCampsite = bindCampsite('edit-campsite', ['edit-place', 'edit-lat', 'edit-lon'], 'edit-lookup', editLookup);
   let editingStopId = null;
 
   function closeEditForm() {
