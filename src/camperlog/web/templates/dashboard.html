@@ -27,15 +27,15 @@
   <h2>Letzte Reisen</h2>
   <table>
     <thead>
-      <tr><th>Datum</th><th>Von</th><th>Nach</th><th>km</th></tr>
+      <tr><th>Von</th><th>Bis</th><th>Stopps</th><th>km</th></tr>
     </thead>
     <tbody>
       {% for t in trips %}
       <tr>
-        <td data-label="Datum">{{ t.date }}</td>
-        <td data-label="Von">{{ t.origin }}</td>
-        <td data-label="Nach">{{ t.destination }}</td>
-        <td data-label="km">{{ t.km }}</td>
+        <td data-label="Von"><a href="/trips/{{ t.id }}">{{ t.start_date }}</a></td>
+        <td data-label="Bis">{{ t.end_date }}</td>
+        <td data-label="Stopps">{{ t.stop_count }}</td>
+        <td data-label="km">{{ t.distance_km if t.distance_km else "-" }}</td>
       </tr>
       {% else %}
       <tr><td colspan="4" class="empty">Keine Reisen vorhanden.</td></tr>
@@ -50,20 +50,16 @@
     <form id="trip-form" novalidate>
       <div class="form-row">
         <div class="form-group">
-          <label for="trip-date">Datum</label>
-          <input type="date" id="trip-date" required>
+          <label for="trip-start">Von</label>
+          <input type="date" id="trip-start" required>
         </div>
         <div class="form-group">
-          <label for="trip-origin">Von</label>
-          <input type="text" id="trip-origin" autocomplete="off" placeholder="z.B. München" required>
-        </div>
-        <div class="form-group">
-          <label for="trip-destination">Nach</label>
-          <input type="text" id="trip-destination" autocomplete="off" placeholder="z.B. Berlin" required>
+          <label for="trip-end">Bis</label>
+          <input type="date" id="trip-end" required>
         </div>
         <div class="form-group km">
-          <label for="trip-km">km</label>
-          <input type="number" id="trip-km" inputmode="numeric" min="1" placeholder="600" required>
+          <label for="trip-km">km (optional)</label>
+          <input type="number" id="trip-km" inputmode="numeric" min="1" placeholder="600">
         </div>
         <button type="submit" class="btn btn-primary">Reise speichern</button>
       </div>
@@ -162,13 +158,13 @@
     const errorEl = document.getElementById('trip-error');
     errorEl.textContent = '';
 
-    const date = document.getElementById('trip-date').value;
-    const origin = document.getElementById('trip-origin').value.trim();
-    const destination = document.getElementById('trip-destination').value.trim();
-    const km = parseInt(document.getElementById('trip-km').value, 10);
+    const start_date = document.getElementById('trip-start').value;
+    const end_date = document.getElementById('trip-end').value;
+    const kmValue = document.getElementById('trip-km').value;
+    const distance_km = kmValue ? parseInt(kmValue, 10) : null;
 
-    if (!date || !origin || !destination || !km) {
-      errorEl.textContent = 'Bitte alle Felder ausfüllen.';
+    if (!start_date || !end_date) {
+      errorEl.textContent = 'Bitte Start- und Enddatum angeben.';
       return;
     }
 
@@ -176,12 +172,17 @@
       const res = await fetch('/api/trips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, origin, destination, km }),
+        body: JSON.stringify({ start_date, end_date, distance_km }),
       });
       if (res.ok) {
         location.reload();
       } else {
-        errorEl.textContent = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
+        let message = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
+        try {
+          const body = await res.json();
+          if (typeof body.detail === 'string') message = body.detail;
+        } catch {}
+        errorEl.textContent = message;
       }
     } catch {
       errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';

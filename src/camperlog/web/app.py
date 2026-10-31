@@ -4,17 +4,19 @@ import os
 from contextlib import asynccontextmanager
 from functools import cache
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from camperlog.config import ConfigError, require_web_config
-from camperlog.database import init_db
+from camperlog.db import require_current_schema
+from camperlog.services.errors import NotFoundError, ValidationError
 from camperlog.web import api, auth, pages
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    require_current_schema()
     yield
 
 
@@ -38,6 +40,15 @@ def create_app() -> FastAPI:
         https_only=use_https_only_cookie(),
         same_site="lax",
     )
+
+    @app.exception_handler(ValidationError)
+    async def business_rule_violated(request: Request, exc: ValidationError):
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    @app.exception_handler(NotFoundError)
+    async def object_not_found(request: Request, exc: NotFoundError):
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
+
     app.include_router(auth.router)
     app.include_router(pages.router)
     app.include_router(api.router)

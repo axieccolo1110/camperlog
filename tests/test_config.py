@@ -72,7 +72,7 @@ def test_serve_aborts_without_config_and_does_not_start_server(
     assert started == []
 
 
-def test_serve_starts_with_config(with_web_vars, monkeypatch):
+def test_serve_starts_with_config(with_web_vars, test_db, monkeypatch):
     import uvicorn
 
     calls = []

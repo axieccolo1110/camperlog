@@ -1,6 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from camperlog.db import dispose_engines, upgrade_to_head
+
 PASSWORD = "test-passwort"
 SECRET_KEY = "test-secret-key"
 
@@ -13,6 +15,9 @@ def web_env(tmp_path, monkeypatch):
     monkeypatch.setenv("CAMPERLOG_PASSWORD", PASSWORD)
     monkeypatch.setenv("CAMPERLOG_SECRET_KEY", SECRET_KEY)
     monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
+    upgrade_to_head()
+    yield
+    dispose_engines()
 
 
 @pytest.fixture

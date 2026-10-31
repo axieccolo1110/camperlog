@@ -13,9 +13,11 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 ## 🎯 Features
 
 ### Trip management (trip tracking)
-- ✅ Record new trips (from → to, kilometers, date)
-- ✅ Overview of all trips in a formatted table
+- ✅ Record trips with a start and an end date and an optional distance
+- ✅ Overview of all trips (period, number of stops, distance) in a formatted table
 - ✅ Chronological sorting (newest first)
+- ✅ Add stops to a trip (date within the trip, optional place name and coordinates)
+- ✅ Edit and delete trips and stops (CLI and web, deleting asks for confirmation)
 
 ### Refuelings (fuel logging)
 - ✅ Document refuelings with costs
@@ -67,6 +69,15 @@ pip install -r requirements-dev.txt
 pip install -e .
 ```
 
+### Create the database
+The schema is managed with Alembic. Create or update the local database (SQLite in `data/camperlog.db`, or the one in `DATABASE_URL`) once after installing and after every update that changes the schema:
+
+```bash
+camperlog db upgrade
+```
+
+CLI commands abort with a hint to this command if the schema is outdated. `make serve` runs the migrations for you.
+
 Afterwards `camperlog` is available as a global command:
 ```bash
 camperlog --help
@@ -80,13 +91,36 @@ camperlog --help
 
 #### Record a new trip
 ```bash
-camperlog trip add --from München --to Berlin --km 600 --date 2026-07-26
+camperlog trip add --start 2026-07-26 --end 2026-08-16 --km 2500
 ```
+
+`--km` (the distance) is optional. The end must not lie before the start.
 
 Output:
 ```
-✓ Reise gespeichert: München → Berlin (600 km)
+✓ Reise gespeichert: 2026-07-26 – 2026-08-16 (2500 km)
 ```
+
+#### Add stops to a trip
+```bash
+camperlog trip stop add 1 --date 2026-07-28 --place Verona --lat 45.438 --lon 10.992
+camperlog trip stop add 1 --date 2026-07-29     # a free-standing stop without a place
+```
+
+The date must lie within the period of the trip (both ends included). Coordinates are given as a pair or not at all. A new stop goes to the end of its day. Show a trip with its stops:
+```bash
+camperlog trip show 1
+```
+
+#### Edit and delete
+```bash
+camperlog trip edit 1 --end 2026-08-20          # also --start, --km, --clear-km
+camperlog trip stop edit 3 --place Rimini        # also --date, --lat/--lon, --clear-coordinates
+camperlog trip stop delete 3                     # asks first, --yes skips the question
+camperlog trip delete 1                          # deletes the trip with its stops
+```
+
+The number of a stop (`3` above) is shown by `camperlog trip show`. A new period of a trip must include all its stops, and the date of an edited stop must stay within the trip. In the web, the trip page (click a trip on the dashboard) offers the same with buttons and a confirmation dialog.
 
 #### Show all trips
 ```bash
@@ -96,11 +130,11 @@ camperlog trip list
 Output:
 ```
 📍 Alle Reisen
-┏━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┳━━━━┓
-┃ Datum      ┃ Von    ┃ Nach   ┃ km ┃
-┡━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━╇━━━━┩
-│ 2026-07-26 │ München│ Berlin │600 │
-└────────────┴────────┴────────┴────┘
+┏━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━┓
+┃ Von        ┃ Bis        ┃ Stopps ┃   km ┃
+┡━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━┩
+│ 2026-07-26 │ 2026-08-16 │      0 │ 2500 │
+└────────────┴────────────┴────────┴──────┘
 ```
 
 ### Managing refuelings
@@ -154,7 +188,7 @@ Then open `http://127.0.0.1:8000`. A secret key can be generated with:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-On Railway, set both variables under *Variables*. The CLI commands (`camperlog trip …`, `camperlog fuel …`) do not need them.
+On Railway, set both variables under *Variables*. The start command runs `alembic upgrade head` before the server starts. A production database that was created before Alembic was introduced must be adopted **once** by hand, without data loss: run `alembic stamp 0001_baseline` against it (with `DATABASE_URL` set), then deploy. The CLI commands (`camperlog trip …`, `camperlog fuel …`) do not need them.
 
 ---
 
@@ -164,12 +198,26 @@ On Railway, set both variables under *Variables*. The CLI commands (`camperlog t
 ```sql
 CREATE TABLE trips (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    origin TEXT NOT NULL,
-    destination TEXT NOT NULL,
-    km INTEGER NOT NULL,
-    date TEXT NOT NULL
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    distance_km INTEGER            -- optional, entered by hand
 )
 ```
+
+### Table: `stops`
+```sql
+CREATE TABLE stops (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,     -- order of entry; stops sort by date, then position
+    date DATE NOT NULL,
+    place_name TEXT,
+    lat FLOAT,
+    lon FLOAT
+)
+```
+
+Trips created before the realignment (one drive with origin, destination, km and date) are migrated automatically: each becomes a trip with start = end = the old date, the old km as distance and two stops (place names = old origin and destination).
 
 ### Table: `fuel_entries`
 ```sql
@@ -183,7 +231,7 @@ CREATE TABLE fuel_entries (
 )
 ```
 
-**Location:** `data/camperlog.db` (relative to the project root)
+**Location:** `data/camperlog.db` (relative to the project root). The tables are created by the Alembic revisions in `migrations/versions/`.
 
 ---
 
@@ -196,9 +244,10 @@ camperlog/
 │   ├── __init__.py
 │   ├── cli.py              # Click CLI commands
 │   ├── config.py           # required variables for the web server
-│   ├── database.py         # SQLite operations
-│   ├── models.py           # data classes (Trip, FuelEntry)
-│   ├── commands/
+│   ├── db.py               # engine, sessions, schema check, migrations entry point
+│   ├── models.py           # domain classes = ORM mapping (Trip, FuelEntry)
+│   ├── services/           # business rules and queries (trips, expenses)
+│   ├── commands/           # one module per CLI group (trip, fuel, db, serve)
 │   └── web/
 │       ├── app.py          # FastAPI app, session middleware, /health
 │       ├── auth.py         # login/logout, "logged in" dependency
@@ -206,10 +255,13 @@ camperlog/
 │       ├── api.py          # JSON API /api/*
 │       ├── schemas.py      # Pydantic models
 │       └── templates/      # base.html, login.html, dashboard.html
+├── migrations/             # Alembic environment and revisions
+├── alembic.ini             # Alembic configuration
 ├── tests/
 │   ├── test_cli.py         # CLI tests
 │   ├── test_config.py      # start-up check of the web server
-│   ├── test_database.py    # database function tests
+│   ├── test_db.py          # engine, migrations, schema check
+│   ├── services/           # service tests
 │   └── integration/        # web tests (login, API, dashboard)
 ├── data/                   # database directory
 ├── docs/                   # documentation
@@ -228,6 +280,7 @@ camperlog/
 - `fastapi`, `uvicorn`, `jinja2` – web server and dashboard
 - `itsdangerous` – signature of the session cookies
 - `python-multipart` – login form
+- `alembic` – database migrations
 
 **Development:**
 - `pytest>=7.0` – testing framework
@@ -264,7 +317,7 @@ make check  # if the Makefile is configured
 
 2. **Write code + tests:**
    ```bash
-   # New function in database.py or cli.py
+   # New function in services/ and a command in commands/
    # Tests in tests/
    ```
 
@@ -315,10 +368,9 @@ tests/
 │   ├── test_trip_list_empty
 │   └── test_trip_list_with_data
 │
-└── test_database.py     # test the database functions
-    ├── test_add_trip
-    ├── test_get_all_trips
-    └── test_empty_trips_list
+└── services/            # test the services
+    ├── test_trips.py
+    └── test_expenses.py
 ```
 
 ---

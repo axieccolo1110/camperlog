@@ -1,55 +1,124 @@
 """JSON API under ``/api``. All routes require a login."""
 
-from fastapi import APIRouter, Depends
+import datetime as dt
 
-from camperlog.database import add_fuel_entry, add_trip, get_all_fuel, get_all_trips
+from fastapi import APIRouter, Depends, Response
+
+from camperlog.db import Session, get_session
+from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
+from camperlog.services.trips import (
+    add_stop,
+    add_trip,
+    delete_stop,
+    delete_trip,
+    get_trip,
+    list_trips,
+    update_stop,
+    update_trip,
+)
 from camperlog.web.auth import require_login
-from camperlog.web.schemas import FuelEntryCreate, FuelEntryRead, TripCreate, TripRead
+from camperlog.web.schemas import (
+    FuelEntryCreate,
+    FuelEntryRead,
+    StopCreate,
+    StopRead,
+    TripCreate,
+    TripDetailRead,
+    TripRead,
+)
 
 router = APIRouter(prefix="/api", dependencies=[Depends(require_login)])
 
 
 @router.get("/trips", response_model=list[TripRead])
-def list_trips():
-    return [
-        TripRead(
-            id=t.id, origin=t.origin, destination=t.destination, km=t.km, date=t.date
-        )
-        for t in get_all_trips()
-    ]
+def get_trips(session: Session = Depends(get_session)):
+    return [TripRead.model_validate(t) for t in list_trips(session)]
 
 
 @router.post("/trips", response_model=TripRead, status_code=201)
-def create_trip(body: TripCreate):
-    t = add_trip(body.origin, body.destination, body.km, body.date)
-    return TripRead(
-        id=t.id, origin=t.origin, destination=t.destination, km=t.km, date=t.date
+def create_trip(body: TripCreate, session: Session = Depends(get_session)):
+    trip = add_trip(
+        session,
+        dt.date.fromisoformat(body.start_date),
+        dt.date.fromisoformat(body.end_date),
+        body.distance_km,
     )
+    return TripRead.model_validate(trip)
+
+
+@router.put("/trips/{trip_id}", response_model=TripRead)
+def replace_trip(
+    trip_id: int, body: TripCreate, session: Session = Depends(get_session)
+):
+    trip = update_trip(
+        session,
+        trip_id,
+        dt.date.fromisoformat(body.start_date),
+        dt.date.fromisoformat(body.end_date),
+        body.distance_km,
+    )
+    return TripRead.model_validate(trip)
+
+
+@router.delete("/trips/{trip_id}", status_code=204)
+def remove_trip(trip_id: int, session: Session = Depends(get_session)):
+    delete_trip(session, trip_id)
+    return Response(status_code=204)
+
+
+@router.get("/trips/{trip_id}", response_model=TripDetailRead)
+def get_trip_detail(trip_id: int, session: Session = Depends(get_session)):
+    return TripDetailRead.model_validate(get_trip(session, trip_id))
+
+
+@router.post("/trips/{trip_id}/stops", response_model=StopRead, status_code=201)
+def create_stop(
+    trip_id: int, body: StopCreate, session: Session = Depends(get_session)
+):
+    stop = add_stop(
+        session,
+        trip_id,
+        dt.date.fromisoformat(body.date),
+        body.place_name,
+        body.lat,
+        body.lon,
+    )
+    return StopRead.model_validate(stop)
+
+
+@router.put("/stops/{stop_id}", response_model=StopRead)
+def replace_stop(
+    stop_id: int, body: StopCreate, session: Session = Depends(get_session)
+):
+    stop = update_stop(
+        session,
+        stop_id,
+        dt.date.fromisoformat(body.date),
+        body.place_name,
+        body.lat,
+        body.lon,
+    )
+    return StopRead.model_validate(stop)
+
+
+@router.delete("/stops/{stop_id}", status_code=204)
+def remove_stop(stop_id: int, session: Session = Depends(get_session)):
+    delete_stop(session, stop_id)
+    return Response(status_code=204)
 
 
 @router.get("/fuel", response_model=list[FuelEntryRead])
-def list_fuel():
-    return [
-        FuelEntryRead(
-            id=e.id,
-            date=e.date,
-            liters=e.liters,
-            price_per_liter=e.price_per_liter,
-            odometer=e.odometer,
-            total_cost=e.total_cost,
-        )
-        for e in get_all_fuel()
-    ]
+def get_fuel(session: Session = Depends(get_session)):
+    return [FuelEntryRead.model_validate(e) for e in list_fuel_entries(session)]
 
 
 @router.post("/fuel", response_model=FuelEntryRead, status_code=201)
-def create_fuel(body: FuelEntryCreate):
-    e = add_fuel_entry(body.date, body.liters, body.price_per_liter, body.odometer)
-    return FuelEntryRead(
-        id=e.id,
-        date=e.date,
-        liters=e.liters,
-        price_per_liter=e.price_per_liter,
-        odometer=e.odometer,
-        total_cost=e.total_cost,
+def create_fuel(body: FuelEntryCreate, session: Session = Depends(get_session)):
+    entry = add_fuel_entry(
+        session,
+        dt.date.fromisoformat(body.date),
+        body.liters,
+        body.price_per_liter,
+        body.odometer,
     )
+    return FuelEntryRead.model_validate(entry)

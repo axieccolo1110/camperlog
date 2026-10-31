@@ -1,13 +1,42 @@
 from datetime import date as _date
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _iso_date(value):
+    """Domain objects carry real dates; the API speaks ISO strings."""
+    return value.isoformat() if isinstance(value, _date) else value
 
 
 class TripCreate(BaseModel):
-    origin: str
-    destination: str
-    km: int = Field(ge=1)
+    start_date: str
+    end_date: str
+    distance_km: int | None = Field(default=None, ge=1)
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def validate_date(cls, v: str) -> str:
+        _date.fromisoformat(v)
+        return v
+
+
+class TripRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    start_date: str
+    end_date: str
+    distance_km: int | None
+    stop_count: int
+
+    _dates_to_iso = field_validator("start_date", "end_date", mode="before")(_iso_date)
+
+
+class StopCreate(BaseModel):
     date: str
+    place_name: str | None = None
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lon: float | None = Field(default=None, ge=-180, le=180)
 
     @field_validator("date")
     @classmethod
@@ -16,12 +45,22 @@ class TripCreate(BaseModel):
         return v
 
 
-class TripRead(BaseModel):
+class StopRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
-    origin: str
-    destination: str
-    km: int
+    trip_id: int
+    position: int
     date: str
+    place_name: str | None
+    lat: float | None
+    lon: float | None
+
+    _date_to_iso = field_validator("date", mode="before")(_iso_date)
+
+
+class TripDetailRead(TripRead):
+    stops: list[StopRead]
 
 
 class FuelEntryCreate(BaseModel):
@@ -38,9 +77,13 @@ class FuelEntryCreate(BaseModel):
 
 
 class FuelEntryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     date: str
     liters: float
     price_per_liter: float
     odometer: int
     total_cost: float
+
+    _date_to_iso = field_validator("date", mode="before")(_iso_date)
