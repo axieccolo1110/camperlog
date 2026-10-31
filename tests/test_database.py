@@ -2,7 +2,7 @@ from camperlog.database import add_trip, get_all_trips, add_fuel_entry, get_all_
 
 
 def test_add_trip(test_db):
-    """Test: Eine Reise wird korrekt gespeichert."""
+    """A trip is stored correctly."""
     trip = add_trip("München", "Berlin", 600, "2026-08-01")
 
     assert trip.id is not None
@@ -25,13 +25,13 @@ def test_get_all_trips(test_db):
 
 
 def test_empty_trips_list(test_db):
-    """Test: Leere Liste wenn keine Reisen existieren."""
+    """Empty list when no trips exist."""
     trips = get_all_trips()
     assert len(trips) == 0
 
 
 def test_add_fuel_entry(test_db):
-    """Test: Ein Tankvorgang wird korrekt gespeichert."""
+    """A fuel entry is stored correctly."""
     entry = add_fuel_entry("2026-08-01", 50.5, 1.85, 45000)
 
     assert entry.id is not None
@@ -43,7 +43,7 @@ def test_add_fuel_entry(test_db):
 
 
 def test_get_all_fuel(test_db):
-    """Test: Alle Tankvorgänge werden abgerufen."""
+    """All fuel entries are returned."""
     add_fuel_entry("2026-08-01", 50.5, 1.85, 45000)
     add_fuel_entry("2026-08-05", 40.0, 1.90, 45400)
 
@@ -55,6 +55,6 @@ def test_get_all_fuel(test_db):
 
 
 def test_empty_fuel_list(test_db):
-    """Test: Leere Liste wenn keine Tankvorgänge existieren."""
+    """Empty list when no fuel entries exist."""
     entries = get_all_fuel()
     assert len(entries) == 0

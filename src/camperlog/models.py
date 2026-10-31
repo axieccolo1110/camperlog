@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Trip:
-    """Datenklasse für eine Reise."""
+    """Data class for a trip."""
 
     id: int
     origin: str
@@ -14,7 +14,7 @@ class Trip:
 
 @dataclass
 class FuelEntry:
-    """Datenklasse für einen Tankvorgang."""
+    """Data class for a fuel entry."""
 
     id: int
     date: str  # Format: YYYY-MM-DD

@@ -1,7 +1,7 @@
-"""Login, Logout und die Abhängigkeit "eingeloggt".
+"""Login, logout and the "logged in" dependency.
 
-Das Passwort steht in ``CAMPERLOG_PASSWORD``. Nach erfolgreichem Login merkt sich
-ein signiertes Session-Cookie (Starlette ``SessionMiddleware``), dass man drin ist.
+The password lives in ``CAMPERLOG_PASSWORD``. After a successful login a signed
+session cookie (Starlette ``SessionMiddleware``) remembers that the user is in.
 """
 
 import os
@@ -18,9 +18,9 @@ router = APIRouter()
 
 
 def check_password(candidate: str) -> bool:
-    """Vergleicht in konstanter Zeit mit ``CAMPERLOG_PASSWORD``.
+    """Compare in constant time with ``CAMPERLOG_PASSWORD``.
 
-    Ist kein Passwort konfiguriert, ist niemals ein Login möglich.
+    If no password is configured, a login is never possible.
     """
     expected = os.environ.get("CAMPERLOG_PASSWORD", "")
     if not expected:
@@ -33,9 +33,9 @@ def is_logged_in(request: Request) -> bool:
 
 
 def require_login(request: Request) -> None:
-    """Gemeinsame Abhängigkeit für alle privaten Routen.
+    """Shared dependency for all private routes.
 
-    Die API (``/api/*``) antwortet mit 401, Seiten leiten auf ``/login`` um.
+    The API (``/api/*``) answers 401, pages redirect to ``/login``.
     """
     if is_logged_in(request):
         return

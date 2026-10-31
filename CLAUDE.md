@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Language
+
+English is the leading language of this repository (it is public): code, comments, docstrings, identifiers, test names, commit messages, PR and issue text, and documentation are written in English. German stays only where users see it: the web UI, CLI output and `--help` texts, and error messages. Domain terms are named in English (e.g. campsite, stop, expense, category); the glossary in `CONTEXT.md` maps them to the German terms.
+
 ## Commands
 
 ```bash

@@ -14,7 +14,7 @@ def _entry(odometer, liters, date="2026-01-01"):
 
 
 def test_consumption_labels_chronological():
-    # neueste zuerst, wie von get_all_fuel() geliefert
+    # newest first, as returned by get_all_fuel()
     entries = [
         _entry(11000, 48.0, "2026-07-26"),
         _entry(10500, 45.0, "2026-07-15"),
@@ -37,8 +37,8 @@ def test_consumption_labels_empty():
 
 
 def test_consumption_labels_non_positive_km_diff():
-    # neuerer Eintrag hat einen niedrigeren oder gleichen km-Stand als der
-    # naechste (aeltere) Eintrag -> Datenanomalie
+    # a newer entry has a lower or equal odometer reading than the next (older)
+    # entry -> data anomaly
     entries = [
         _entry(10000, 40.0, "2026-07-15"),
         _entry(10000, 50.0, "2026-07-01"),

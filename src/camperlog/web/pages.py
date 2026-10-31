@@ -1,4 +1,4 @@
-"""Private HTML-Seiten. Alle Routen setzen einen Login voraus."""
+"""Private HTML pages. All routes require a login."""
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse

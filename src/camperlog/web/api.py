@@ -1,4 +1,4 @@
-"""JSON-API unter ``/api``. Alle Routen setzen einen Login voraus."""
+"""JSON API under ``/api``. All routes require a login."""
 
 from fastapi import APIRouter, Depends
 

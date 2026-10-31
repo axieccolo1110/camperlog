@@ -41,7 +41,7 @@ def test_wrong_password_shows_error_and_sets_no_cookie(anon_client):
     assert "Falsches Passwort" in r.text
     assert "set-cookie" not in r.headers
     assert len(anon_client.cookies) == 0
-    # und es ist weiterhin alles gesperrt
+    # and everything stays locked
     assert anon_client.get("/api/trips").status_code == 401
 
 
