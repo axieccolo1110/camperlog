@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Stellplätze – CamperLog{% endblock %}
+{% block heading %}Stellplätze{% endblock %}
+
+{% block content %}
+<section>
+  <h2>Alle Stellplätze</h2>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Status</th><th>Koordinaten</th><th>Spielplatz</th><th>Haustiere</th><th>Link</th></tr>
+    </thead>
+    <tbody>
+      {% for c in campsites %}
+      <tr>
+        <td data-label="Name">{{ c.name }}</td>
+        <td data-label="Status">{{ status_label(c.status) }}</td>
+        <td data-label="Koordinaten">{{ c.lat }}, {{ c.lon }}</td>
+        <td data-label="Spielplatz">{{ "ja" if c.playground else "-" }}</td>
+        <td data-label="Haustiere">{{ "ja" if c.pets_allowed else "-" }}</td>
+        <td data-label="Link">{% if c.external_url %}<a href="{{ c.external_url }}" target="_blank" rel="noopener noreferrer">öffnen</a>{% else %}-{% endif %}</td>
+      </tr>
+      {% if c.notes %}
+      <tr class="notes-row"><td colspan="6" class="empty">{{ c.notes }}</td></tr>
+      {% endif %}
+      {% else %}
+      <tr><td colspan="6" class="empty">Noch keine Stellplätze erfasst.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="form-card">
+    <h2>Neuen Stellplatz erfassen</h2>
+    <form id="campsite-form" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="campsite-name">Name</label>
+          <input type="text" id="campsite-name" autocomplete="off" placeholder="z.B. Wiese am See" required>
+        </div>
+        <div class="form-group km">
+          <label for="campsite-lat">Breite</label>
+          <input type="number" id="campsite-lat" inputmode="decimal" step="any" min="-90" max="90" placeholder="46.668" required>
+        </div>
+        <div class="form-group km">
+          <label for="campsite-lon">Länge</label>
+          <input type="number" id="campsite-lon" inputmode="decimal" step="any" min="-180" max="180" placeholder="11.159" required>
+        </div>
+        <div class="form-group">
+          <label for="campsite-status">Status</label>
+          <select id="campsite-status">
+            <option value="bookmarked">vorgemerkt</option>
+            <option value="visited">besucht</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="campsite-url">Link (optional, z.B. Park4Night)</label>
+          <input type="url" id="campsite-url" inputmode="url" autocomplete="off" placeholder="https://…">
+        </div>
+        <div class="form-group">
+          <label for="campsite-notes">Notizen (optional)</label>
+          <textarea id="campsite-notes" rows="3"></textarea>
+        </div>
+        <label class="form-check"><input type="checkbox" id="campsite-playground"> Spielplatz vorhanden</label>
+        <label class="form-check"><input type="checkbox" id="campsite-pets"> Haustiere erlaubt</label>
+        <button type="submit" class="btn btn-primary">Stellplatz speichern</button>
+      </div>
+      <p class="form-error" id="campsite-error"></p>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('campsite-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('campsite-error');
+    errorEl.textContent = '';
+
+    const name = document.getElementById('campsite-name').value.trim();
+    const lat = parseFloat(document.getElementById('campsite-lat').value);
+    const lon = parseFloat(document.getElementById('campsite-lon').value);
+    if (!name || Number.isNaN(lat) || Number.isNaN(lon)) {
+      errorEl.textContent = 'Bitte Name, Breite und Länge angeben.';
+      return;
+    }
+
+    const payload = {
+      name,
+      lat,
+      lon,
+      status: document.getElementById('campsite-status').value,
+      notes: document.getElementById('campsite-notes').value.trim() || null,
+      playground: document.getElementById('campsite-playground').checked,
+      pets_allowed: document.getElementById('campsite-pets').checked,
+      external_url: document.getElementById('campsite-url').value.trim() || null,
+    };
+
+    try {
+      const res = await fetch('/api/campsites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        location.reload();
+      } else {
+        let message = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
+        try {
+          const body = await res.json();
+          if (typeof body.detail === 'string') message = body.detail;
+        } catch {}
+        errorEl.textContent = message;
+      }
+    } catch {
+      errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+    }
+  });
+</script>
+{% endblock %}

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from camperlog.models import Stop, Trip
 from camperlog.services.errors import NotFoundError, ValidationError
+from camperlog.services.validation import check_coordinate_ranges
 
 
 def _check_trip_fields(
@@ -30,10 +31,7 @@ def _check_stop_fields(
         )
     if (lat is None) != (lon is None):
         raise ValidationError("Koordinaten brauchen Breite und Länge.")
-    if lat is not None and not -90 <= lat <= 90:
-        raise ValidationError("Die Breite muss zwischen -90 und 90 liegen.")
-    if lon is not None and not -180 <= lon <= 180:
-        raise ValidationError("Die Länge muss zwischen -180 und 180 liegen.")
+    check_coordinate_ranges(lat, lon)
 
 
 def _clean_place(place_name: str | None) -> str | None:

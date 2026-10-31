@@ -69,3 +69,23 @@ class FuelEntry(Base):
     price_per_liter: Mapped[float]
     odometer: Mapped[int]
     total_cost: Mapped[float]
+
+
+CAMPSITE_STATUSES = ("visited", "bookmarked")
+
+
+class Campsite(Base):
+    """A place of its own, independent of any trip (Stellplatz)."""
+
+    __tablename__ = "campsites"
+
+    id: Mapped[int] = mapped_column(primary_key=True, init=False)
+    name: Mapped[str]
+    lat: Mapped[float]
+    lon: Mapped[float]
+    # Manual status. The effective status also depends on past stops (F3.2).
+    status: Mapped[str] = mapped_column(default="bookmarked")
+    notes: Mapped[str | None] = mapped_column(default=None)
+    playground: Mapped[bool] = mapped_column(default=False)
+    pets_allowed: Mapped[bool] = mapped_column(default=False)
+    external_url: Mapped[str | None] = mapped_column(default=None)

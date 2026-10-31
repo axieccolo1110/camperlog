@@ -30,6 +30,10 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 - 📱 Responsive: phone, tablet and desktop
 - 📈 Record trips and refuelings, fuel costs as a chart
 
+### Campsites
+- ✅ Collect campsites independently of trips: name, coordinates, status (visited/bookmarked), notes, playground, pets allowed, external link (e.g. Park4Night)
+- ✅ List and form in the web (`/campsites`) and in the CLI
+
 ### Data management
 - 💾 SQLite database (persistent, local)
 - 🔒 Validation of all inputs (date format, numeric values)
@@ -137,6 +141,16 @@ Output:
 └────────────┴────────────┴────────┴──────┘
 ```
 
+### Managing campsites
+
+```bash
+camperlog campsite add --name "Wiese am See" --lat 46.668 --lon 11.159 \
+    --status vorgemerkt --playground --pets --url https://park4night.com/place/1
+camperlog campsite list
+```
+
+Name and coordinates are required. `--status` is `vorgemerkt` (default) or `besucht`. Only `http(s)` links are accepted. In the web, campsites are under *Stellplätze* in the navigation.
+
 ### Managing refuelings
 
 #### Record a refueling
@@ -218,6 +232,21 @@ CREATE TABLE stops (
 ```
 
 Trips created before the realignment (one drive with origin, destination, km and date) are migrated automatically: each becomes a trip with start = end = the old date, the old km as distance and two stops (place names = old origin and destination).
+
+### Table: `campsites`
+```sql
+CREATE TABLE campsites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR NOT NULL,
+    lat FLOAT NOT NULL,
+    lon FLOAT NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'bookmarked',   -- 'visited' or 'bookmarked'
+    notes VARCHAR,
+    playground BOOLEAN NOT NULL DEFAULT false,
+    pets_allowed BOOLEAN NOT NULL DEFAULT false,
+    external_url VARCHAR
+)
+```
 
 ### Table: `fuel_entries`
 ```sql
