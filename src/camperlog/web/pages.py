@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from camperlog.consumption import consumption_labels
 from camperlog.db import Session, get_session
 from camperlog.services.expenses import list_fuel_entries
-from camperlog.services.trips import list_trips
+from camperlog.services.trips import get_trip, list_trips
 from camperlog.web.auth import require_login
 from camperlog.web.templating import templates
 
@@ -51,4 +51,15 @@ def dashboard(request: Request, session: Session = Depends(get_session)):
             "chart_labels": chart_labels,
             "chart_costs": chart_costs,
         },
+    )
+
+
+@router.get("/trips/{trip_id}", response_class=HTMLResponse)
+def trip_detail(
+    trip_id: int, request: Request, session: Session = Depends(get_session)
+):
+    return templates.TemplateResponse(
+        request=request,
+        name="trip.html",
+        context={"show_logout": True, "trip": get_trip(session, trip_id)},
     )

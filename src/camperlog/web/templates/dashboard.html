@@ -32,7 +32,7 @@
     <tbody>
       {% for t in trips %}
       <tr>
-        <td data-label="Von">{{ t.start_date }}</td>
+        <td data-label="Von"><a href="/trips/{{ t.id }}">{{ t.start_date }}</a></td>
         <td data-label="Bis">{{ t.end_date }}</td>
         <td data-label="Stopps">{{ t.stop_count }}</td>
         <td data-label="km">{{ t.distance_km if t.distance_km else "-" }}</td>

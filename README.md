@@ -16,7 +16,7 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 - ✅ Record trips with a start and an end date and an optional distance
 - ✅ Overview of all trips (period, number of stops, distance) in a formatted table
 - ✅ Chronological sorting (newest first)
-- ✅ Every trip has stops (recording stops by hand follows in the next steps)
+- ✅ Add stops to a trip (date within the trip, optional place name and coordinates)
 
 ### Refuelings (fuel logging)
 - ✅ Document refuelings with costs
@@ -98,6 +98,17 @@ camperlog trip add --start 2026-07-26 --end 2026-08-16 --km 2500
 Output:
 ```
 ✓ Reise gespeichert: 2026-07-26 – 2026-08-16 (2500 km)
+```
+
+#### Add stops to a trip
+```bash
+camperlog trip stop add 1 --date 2026-07-28 --place Verona --lat 45.438 --lon 10.992
+camperlog trip stop add 1 --date 2026-07-29     # a free-standing stop without a place
+```
+
+The date must lie within the period of the trip (both ends included). Coordinates are given as a pair or not at all. A new stop goes to the end of its day. Show a trip with its stops:
+```bash
+camperlog trip show 1
 ```
 
 #### Show all trips

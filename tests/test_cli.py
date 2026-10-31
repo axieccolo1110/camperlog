@@ -258,3 +258,96 @@ def test_fuel_list_consumption_calculation(runner, test_db):
     assert "9.0" in result.output
     # the oldest entry has no previous odometer reading
     assert "?" not in result.output
+
+
+# --- stops -------------------------------------------------------------------
+
+
+@pytest.fixture
+def trip_id(runner, test_db):
+    runner.invoke(cli, [*TRIP_ARGS, "--km", "2500"])
+    return "1"
+
+
+def test_stop_add_with_place_and_coordinates(runner, trip_id):
+    result = runner.invoke(
+        cli,
+        [
+            "trip", "stop", "add", trip_id,
+            "--date", "2026-08-10",
+            "--place", "Verona",
+            "--lat", "45.438",
+            "--lon", "10.992",
+        ],
+    )  # fmt: skip
+
+    assert result.exit_code == 0
+    assert "Stopp gespeichert" in result.output
+    shown = runner.invoke(cli, ["trip", "show", trip_id])
+    assert "Verona" in shown.output
+    assert "45.438" in shown.output
+
+
+def test_stop_add_needs_only_a_date(runner, trip_id):
+    result = runner.invoke(
+        cli, ["trip", "stop", "add", trip_id, "--date", "2026-08-10"]
+    )
+
+    assert result.exit_code == 0
+
+
+def test_stop_add_outside_the_period_is_rejected(runner, trip_id):
+    result = runner.invoke(
+        cli, ["trip", "stop", "add", trip_id, "--date", "2026-09-01"]
+    )
+
+    assert result.exit_code != 0
+    assert "Zeitraum der Reise" in result.output
+    assert "Keine Stopps" in runner.invoke(cli, ["trip", "show", trip_id]).output
+
+
+def test_stop_add_unknown_trip(runner, test_db):
+    result = runner.invoke(cli, ["trip", "stop", "add", "42", "--date", "2026-08-10"])
+
+    assert result.exit_code != 0
+    assert "42" in result.output
+
+
+def test_stop_add_needs_both_coordinates(runner, trip_id):
+    result = runner.invoke(
+        cli,
+        ["trip", "stop", "add", trip_id, "--date", "2026-08-10", "--lat", "45.4"],
+    )
+
+    assert result.exit_code != 0
+    assert "Breite und Länge" in result.output
+
+
+def test_trip_show_unknown_trip(runner, test_db):
+    result = runner.invoke(cli, ["trip", "show", "42"])
+
+    assert result.exit_code != 0
+
+
+def test_trip_list_counts_the_stops(runner, trip_id):
+    runner.invoke(cli, ["trip", "stop", "add", trip_id, "--date", "2026-08-10"])
+    runner.invoke(cli, ["trip", "stop", "add", trip_id, "--date", "2026-08-11"])
+
+    result = runner.invoke(cli, ["trip", "list"])
+
+    assert " 2 " in result.output
+
+
+def test_three_week_trip_with_six_stops_via_the_cli(runner, test_db):
+    """The scenario from the issue, recorded with the CLI."""
+    runner.invoke(cli, ["trip", "add", "--start", "2026-08-01", "--end", "2026-08-21"])
+    days = ["2026-08-01", "2026-08-04", "2026-08-08", "2026-08-12", "2026-08-16"]
+    for day in [*days, "2026-08-21"]:
+        result = runner.invoke(cli, ["trip", "stop", "add", "1", "--date", day])
+        assert result.exit_code == 0
+
+    shown = runner.invoke(cli, ["trip", "show", "1"])
+
+    assert shown.exit_code == 0
+    for day in [*days, "2026-08-21"]:
+        assert day in shown.output

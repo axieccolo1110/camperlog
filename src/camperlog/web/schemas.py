@@ -32,6 +32,37 @@ class TripRead(BaseModel):
     _dates_to_iso = field_validator("start_date", "end_date", mode="before")(_iso_date)
 
 
+class StopCreate(BaseModel):
+    date: str
+    place_name: str | None = None
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lon: float | None = Field(default=None, ge=-180, le=180)
+
+    @field_validator("date")
+    @classmethod
+    def validate_date(cls, v: str) -> str:
+        _date.fromisoformat(v)
+        return v
+
+
+class StopRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    trip_id: int
+    position: int
+    date: str
+    place_name: str | None
+    lat: float | None
+    lon: float | None
+
+    _date_to_iso = field_validator("date", mode="before")(_iso_date)
+
+
+class TripDetailRead(TripRead):
+    stops: list[StopRead]
+
+
 class FuelEntryCreate(BaseModel):
     date: str
     liters: float = Field(gt=0)

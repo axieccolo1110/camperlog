@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from camperlog.config import ConfigError, require_web_config
 from camperlog.db import require_current_schema
-from camperlog.services.errors import ValidationError
+from camperlog.services.errors import NotFoundError, ValidationError
 from camperlog.web import api, auth, pages
 
 
@@ -44,6 +44,10 @@ def create_app() -> FastAPI:
     @app.exception_handler(ValidationError)
     async def business_rule_violated(request: Request, exc: ValidationError):
         return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    @app.exception_handler(NotFoundError)
+    async def object_not_found(request: Request, exc: NotFoundError):
+        return JSONResponse(status_code=404, content={"detail": str(exc)})
 
     app.include_router(auth.router)
     app.include_router(pages.router)

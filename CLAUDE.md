@@ -49,15 +49,15 @@ The project has two entry points that share the same database layer:
 - **Web app** (`src/camperlog/web/`) — FastAPI app, split into:
   - `app.py` — `create_app()` (lifespan checks the schema version, `SessionMiddleware`, routers, `GET /health`). `app` is built lazily on first access (module `__getattr__`), so importing the module needs no env vars; uvicorn target is `camperlog.web.app:app`.
   - `auth.py` — `GET/POST /login`, `POST /logout`, and the shared dependency `require_login`: pages redirect to `/login` (303), `/api/*` answers 401.
-  - `pages.py` — private HTML pages (dashboard at `GET /`).
-  - `api.py` — `APIRouter` for `/api/trips` and `/api/fuel` (GET/POST).
+  - `pages.py` — private HTML pages (dashboard at `GET /`, trip detail with stop form at `GET /trips/{id}`).
+  - `api.py` — `APIRouter` for `/api/trips` (list, create, detail with stops, `POST /api/trips/{id}/stops`) and `/api/fuel` (GET/POST).
   - `templating.py` — shared `Jinja2Templates` instance.
   - Public routes: `/health`, `/login`. Everything else needs a login.
 
 **Layer stack (top → bottom):**
 1. `cli.py` + `commands/` / `web/app.py` (+ `auth.py`, `pages.py`, `api.py`) — entry points. They never import `sqlalchemy` or `camperlog.models` (enforced by `tests/test_layers.py`).
 2. `web/schemas.py` — Pydantic models for request validation and response serialization; read from domain objects via `from_attributes`
-3. `services/` — business rules and all queries: `trips.py`, `expenses.py` (for now only refuelings). Functions take a `Session` and commit themselves (one function = one transaction). Sessions are short-lived: one per request on the web (`Depends(get_session)`), one per command in the CLI (`session_scope()`).
+3. `services/` — business rules and all queries: `trips.py` (trips and stops), `expenses.py` (for now only refuelings). Business rule violations raise `ValidationError` (web: 422), missing objects `NotFoundError` (web: 404, CLI: error message); both live in `services/errors.py` and carry the German user message. Read queries use `populate_existing` so a session that inserted stops by `trip_id` does not keep a stale collection. Functions take a `Session` and commit themselves (one function = one transaction). Sessions are short-lived: one per request on the web (`Depends(get_session)`), one per command in the CLI (`session_scope()`).
 4. `models.py` — domain classes `Trip`, `Stop` (a trip owns its ordered stops, `Trip.stops`, cascade delete) and `FuelEntry`, each at once a dataclass and the ORM mapping (`MappedAsDataclass`, ADR 0004)
 5. `db.py` — infrastructure: one engine per process and database URL, sessions, schema version check, `upgrade_to_head()`
 
