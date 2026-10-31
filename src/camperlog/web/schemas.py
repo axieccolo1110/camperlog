@@ -1,4 +1,5 @@
 from datetime import date as _date
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -61,6 +62,31 @@ class StopRead(BaseModel):
 
 class TripDetailRead(TripRead):
     stops: list[StopRead]
+
+
+class CampsiteCreate(BaseModel):
+    name: str
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    status: Literal["visited", "bookmarked"] = "bookmarked"
+    notes: str | None = None
+    playground: bool = False
+    pets_allowed: bool = False
+    external_url: str | None = None
+
+
+class CampsiteRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    lat: float
+    lon: float
+    status: str
+    notes: str | None
+    playground: bool
+    pets_allowed: bool
+    external_url: str | None
 
 
 class PlaceRead(BaseModel):

@@ -68,6 +68,7 @@ The order follows the dependencies: each milestone builds on the previous one.
   - **Retrospective:** visited campsites and free-standing stops with coordinates as pins. Per trip a straight line connecting the stops in order can be shown.
   - **Bookmark list:** bookmarked campsites.
 - The map exists on the web only. The CLI can create and list campsites (`campsite …`).
+- **Coordinate lookup:** when a place name is entered for a stop (later also for a campsite), the coordinates are looked up in the background and filled in if the place is known. With several matches the user picks one. If the lookup finds nothing or fails, entering coordinates by hand still works ([ADR 0006](adr/0006-coordinate-lookup-via-nominatim-on-the-server.md)).
 
 **Done when:** you can bookmark a place in February, assign it to a trip as a stop in August, and it then appears in the retrospective instead of the bookmark list.
 

@@ -5,6 +5,7 @@ import datetime as dt
 from fastapi import APIRouter, Depends, Query, Response
 
 from camperlog.db import Session, get_session
+from camperlog.services.campsites import add_campsite, list_campsites
 from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
 from camperlog.services.geocoding import Geocoder, GeocodingUnavailable, get_geocoder
 from camperlog.services.trips import (
@@ -19,6 +20,8 @@ from camperlog.services.trips import (
 )
 from camperlog.web.auth import require_login
 from camperlog.web.schemas import (
+    CampsiteCreate,
+    CampsiteRead,
     FuelEntryCreate,
     FuelEntryRead,
     GeocodeResponse,
@@ -108,6 +111,27 @@ def replace_stop(
 def remove_stop(stop_id: int, session: Session = Depends(get_session)):
     delete_stop(session, stop_id)
     return Response(status_code=204)
+
+
+@router.get("/campsites", response_model=list[CampsiteRead])
+def get_campsites(session: Session = Depends(get_session)):
+    return [CampsiteRead.model_validate(c) for c in list_campsites(session)]
+
+
+@router.post("/campsites", response_model=CampsiteRead, status_code=201)
+def create_campsite(body: CampsiteCreate, session: Session = Depends(get_session)):
+    campsite = add_campsite(
+        session,
+        body.name,
+        body.lat,
+        body.lon,
+        body.status,
+        body.notes,
+        body.playground,
+        body.pets_allowed,
+        body.external_url,
+    )
+    return CampsiteRead.model_validate(campsite)
 
 
 @router.get("/fuel", response_model=list[FuelEntryRead])

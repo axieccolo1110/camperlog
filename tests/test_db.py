@@ -46,7 +46,12 @@ def test_upgrade_creates_the_current_schema(fresh_db):
     db.upgrade_to_head()
 
     inspector = inspect(db.get_engine())
-    assert set(inspector.get_table_names()) >= {"trips", "stops", "fuel_entries"}
+    assert set(inspector.get_table_names()) >= {
+        "trips",
+        "stops",
+        "campsites",
+        "fuel_entries",
+    }
     trip_columns = {c["name"] for c in inspector.get_columns("trips")}
     assert trip_columns == {"id", "start_date", "end_date", "distance_km"}
     fuel_columns = {c["name"] for c in inspector.get_columns("fuel_entries")}
@@ -219,3 +224,19 @@ def test_web_app_refuses_to_start_on_outdated_schema(fresh_db, monkeypatch):
     with pytest.raises(db.SchemaOutdatedError):
         with TestClient(create_app()):
             pass
+
+
+def test_database_rejects_an_unknown_campsite_status(fresh_db):
+    """The check constraint protects the data even if a service is bypassed."""
+    from sqlalchemy.exc import IntegrityError
+
+    db.upgrade_to_head()
+
+    with pytest.raises(IntegrityError):
+        with db.get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO campsites (name, lat, lon, status) "
+                    "VALUES ('X', 45, 10, 'planned')"
+                )
+            )

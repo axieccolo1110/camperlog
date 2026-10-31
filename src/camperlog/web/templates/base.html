@@ -52,6 +52,12 @@
     .form-group { display: flex; flex-direction: column; gap: .3rem; }
     .form-group label { font-size: .8rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .04em; }
     /* 16px Schrift verhindert den Auto-Zoom von iOS Safari beim Fokussieren. */
+    .form-group select, .form-group textarea { min-height: 2.75rem; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; font-family: inherit; width: 100%; background: #fff; }
+    .form-group textarea { min-height: 5rem; resize: vertical; }
+    .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+    .form-check { display: flex; align-items: center; gap: .6rem; min-height: 2.75rem; font-size: 1rem; }
+    .form-check input { width: 1.4rem; height: 1.4rem; }
+    .nav { max-width: 64rem; margin: 0 auto 1.25rem; display: flex; gap: 1.25rem; font-weight: 600; }
     .form-group input { min-height: 2.75rem; padding: .5rem .75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; font-family: inherit; width: 100%; }
     .form-group input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
     .btn { min-height: 2.75rem; padding: .5rem 1.25rem; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; font-family: inherit; cursor: pointer; }
@@ -109,6 +115,13 @@
   {% endif %}
   {% endblock %}
 </div>
+
+{% if show_logout %}
+<nav class="nav">
+  <a href="/">Dashboard</a>
+  <a href="/campsites">Stellplätze</a>
+</nav>
+{% endif %}
 
 <main>
 {% block content %}{% endblock %}
