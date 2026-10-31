@@ -2,6 +2,7 @@
 
 import click
 
+from camperlog.commands.campsite import campsite
 from camperlog.commands.db import db
 from camperlog.commands.fuel import fuel
 from camperlog.commands.serve import serve
@@ -25,6 +26,7 @@ def cli(ctx):
 
 
 cli.add_command(trip)
+cli.add_command(campsite)
 cli.add_command(fuel)
 cli.add_command(db)
 cli.add_command(serve)

@@ -140,7 +140,17 @@
     .form-group label { font-size: .8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
     .form-group input { min-height: 2.75rem; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; font-family: inherit; background: var(--surfaceAlt); color: var(--text); width: 100%; }
     .form-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accentSofter); }
+    .form-group select, .form-group textarea { min-height: 2.75rem; padding: .5rem .75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; font-family: inherit; width: 100%; background: var(--surfaceAlt); color: var(--text); }
+    .form-group textarea { min-height: 5rem; resize: vertical; }
+    .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accentSofter); }
+    .form-check { display: flex; align-items: center; gap: .6rem; min-height: 2.75rem; font-size: 1rem; color: var(--text); }
+    .form-check input { width: 1.4rem; height: 1.4rem; }
     .danger-zone { display: flex; justify-content: flex-start; }
+    .badge { display: inline-block; padding: .05rem .5rem; margin-left: .35rem; border-radius: 999px; background: var(--accentSoft); color: var(--accent); font-size: .75rem; font-weight: 600; }
+    .lookup { margin-top: .5rem; }
+    .lookup-hint { font-size: .9rem; color: var(--muted); }
+    .lookup-choices { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+    .lookup-attribution { font-size: .75rem; color: var(--muted2); margin-top: .25rem; }
 
     /* Tabellen: auf dem Handy wird jede Zeile zur Karte (Label aus data-label), damit nichts seitlich scrollt. */
     table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadowSm); }
@@ -217,9 +227,12 @@
         <a href="/" class="nav-item{{ ' active' if active_nav == 'dashboard' }}">
           {{ icons.home() }} Dashboard
         </a>
-        <button type="button" class="nav-item" disabled aria-disabled="true" title="Noch nicht verfügbar">
-          {{ icons.route() }} Reisen
-        </button>
+        <a href="/campsites" class="nav-item{{ ' active' if active_nav == 'campsites' }}">
+          {{ icons.pin() }} Stellplätze
+        </a>
+        <a href="/map" class="nav-item{{ ' active' if active_nav == 'map' }}">
+          {{ icons.map() }} Karte
+        </a>
         <a href="/tanken" class="nav-item{{ ' active' if active_nav == 'tanken' }}">
           {{ icons.fuel() }} Tanken
         </a>
@@ -260,13 +273,21 @@
 
 <nav class="bottom-nav" aria-label="Hauptnavigation">
   <a href="/" class="bottom-nav-item{{ ' active' if active_nav == 'dashboard' }}">{{ icons.home(20) }}<span>Dashboard</span></a>
-  <button type="button" class="bottom-nav-item" disabled aria-disabled="true">{{ icons.route(20) }}<span>Reisen</span></button>
+  <a href="/campsites" class="bottom-nav-item{{ ' active' if active_nav == 'campsites' }}">{{ icons.pin(20) }}<span>Stellplätze</span></a>
+  <a href="/map" class="bottom-nav-item{{ ' active' if active_nav == 'map' }}">{{ icons.map(20) }}<span>Karte</span></a>
   <a href="/tanken" class="bottom-nav-item{{ ' active' if active_nav == 'tanken' }}">{{ icons.fuel(20) }}<span>Tanken</span></a>
   <button type="button" class="bottom-nav-item" disabled aria-disabled="true">{{ icons.settings(20) }}<span>Einstellungen</span></button>
 </nav>
 {% endblock %}
 
 <div id="toast-container" aria-live="polite"></div>
+<template id="toast-template">
+  <div class="toast" role="status">
+    <span class="toast-icon" aria-hidden="true">{{ icons.check(16) }}</span>
+    <div><div class="toast-text"></div><div class="toast-sub" hidden></div></div>
+    <button type="button" class="toast-close" aria-label="Hinweis schließen">{{ icons.close(13) }}</button>
+  </div>
+</template>
 
 {% block scripts %}{% endblock %}
 <script>
@@ -300,15 +321,11 @@
 
     var FLASH_KEY = 'camperlog-flash';
 
+    // The toast markup is parsed once from the server-rendered <template> below
+    // and cloned per toast; text and sub (e.g. a place name) are only ever
+    // inserted as text, never parsed as markup.
     function renderToast(text, sub) {
-      var container = document.getElementById('toast-container');
-      var toast = document.createElement('div');
-      toast.className = 'toast';
-      toast.setAttribute('role', 'status');
-      toast.innerHTML =
-        '<span class="toast-icon" aria-hidden="true">{{ icons.check(16) }}</span>' +
-        '<div><div class="toast-text"></div><div class="toast-sub" hidden></div></div>' +
-        '<button type="button" class="toast-close" aria-label="Hinweis schließen">{{ icons.close(13) }}</button>';
+      var toast = document.getElementById('toast-template').content.firstElementChild.cloneNode(true);
       toast.querySelector('.toast-text').textContent = text;
       if (sub) {
         var subEl = toast.querySelector('.toast-sub');
@@ -321,7 +338,7 @@
         toast.remove();
       }
       toast.querySelector('.toast-close').addEventListener('click', remove);
-      container.appendChild(toast);
+      document.getElementById('toast-container').appendChild(toast);
     }
 
     window.camperlogToast = renderToast;

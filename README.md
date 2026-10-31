@@ -18,6 +18,7 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 - ✅ Chronological sorting (newest first)
 - ✅ Add stops to a trip (date within the trip, optional place name and coordinates)
 - ✅ Edit and delete trips and stops (CLI and web, deleting asks for confirmation)
+- ✅ Type a place name for a stop and the coordinates are looked up (OpenStreetMap Nominatim, asked from the server; one match is filled in, several are offered, a failed lookup never blocks the form)
 
 ### Refuelings (fuel logging)
 - ✅ Document refuelings with costs
@@ -29,6 +30,13 @@ The user interface (web pages, CLI output and `--help` texts) is currently in Ge
 - 🔐 Login with a password, all pages and the API (`/api/*`) are protected
 - 📱 Responsive: phone, tablet and desktop
 - 📈 Record trips and refuelings, fuel costs as a chart
+
+### Campsites
+- ✅ Collect campsites independently of trips: name, coordinates, status (visited/bookmarked), notes, playground, pets allowed, external link (e.g. Park4Night)
+- ✅ List and form in the web (`/campsites`) and in the CLI
+- ✅ Map (`/map`) with two views (Leaflet and OpenStreetMap tiles from a CDN, so the map needs an internet connection):
+  - **Vormerkliste:** your bookmarked campsites as pins; click a pin for name, notes, flags and the external link
+  - **Rückschau:** visited campsites (pins) and free-standing stops with coordinates (orange dots); per trip a straight line through its places in order can be switched on (as the crow flies, not a driving route). Stops without coordinates are skipped and do not interrupt the line
 
 ### Data management
 - 💾 SQLite database (persistent, local)
@@ -105,9 +113,10 @@ Output:
 ```bash
 camperlog trip stop add 1 --date 2026-07-28 --place Verona --lat 45.438 --lon 10.992
 camperlog trip stop add 1 --date 2026-07-29     # a free-standing stop without a place
+camperlog trip stop add 1 --date 2026-07-30 --campsite 2   # a stop at campsite no. 2
 ```
 
-The date must lie within the period of the trip (both ends included). Coordinates are given as a pair or not at all. A new stop goes to the end of its day. Show a trip with its stops:
+The date must lie within the period of the trip (both ends included). Coordinates are given as a pair or not at all. A stop at a campsite takes over its name and coordinates, so `--campsite` cannot be combined with `--place`, `--lat` or `--lon` (`trip stop edit … --campsite` replaces an own place, `--clear-campsite` frees the stop again). The status of a campsite is computed: it is shown as *besucht* if it is marked so or a stop dated today or earlier references it; a stop planned for the future changes nothing. A new stop goes to the end of its day. Show a trip with its stops:
 ```bash
 camperlog trip show 1
 ```
@@ -136,6 +145,16 @@ Output:
 │ 2026-07-26 │ 2026-08-16 │      0 │ 2500 │
 └────────────┴────────────┴────────┴──────┘
 ```
+
+### Managing campsites
+
+```bash
+camperlog campsite add --name "Wiese am See" --lat 46.668 --lon 11.159 \
+    --status vorgemerkt --playground --pets --url https://park4night.com/place/1
+camperlog campsite list
+```
+
+Name and coordinates are required. `--status` is `vorgemerkt` (default) or `besucht`. Only `http(s)` links are accepted. In the web, campsites are under *Stellplätze* in the navigation.
 
 ### Managing refuelings
 
@@ -211,13 +230,29 @@ CREATE TABLE stops (
     trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
     position INTEGER NOT NULL,     -- order of entry; stops sort by date, then position
     date DATE NOT NULL,
-    place_name TEXT,
+    place_name TEXT,               -- own place, only without a campsite
     lat FLOAT,
-    lon FLOAT
+    lon FLOAT,
+    campsite_id INTEGER REFERENCES campsites(id)   -- takes over the campsite's place
 )
 ```
 
 Trips created before the realignment (one drive with origin, destination, km and date) are migrated automatically: each becomes a trip with start = end = the old date, the old km as distance and two stops (place names = old origin and destination).
+
+### Table: `campsites`
+```sql
+CREATE TABLE campsites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR NOT NULL,
+    lat FLOAT NOT NULL,
+    lon FLOAT NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'bookmarked',   -- 'visited' or 'bookmarked'
+    notes VARCHAR,
+    playground BOOLEAN NOT NULL DEFAULT false,
+    pets_allowed BOOLEAN NOT NULL DEFAULT false,
+    external_url VARCHAR
+)
+```
 
 ### Table: `fuel_entries`
 ```sql
@@ -280,6 +315,7 @@ camperlog/
 - `fastapi`, `uvicorn`, `jinja2` – web server and dashboard
 - `itsdangerous` – signature of the session cookies
 - `python-multipart` – login form
+- `httpx` – coordinate lookup for place names
 - `alembic` – database migrations
 
 **Development:**

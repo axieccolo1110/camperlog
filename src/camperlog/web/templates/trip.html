@@ -36,10 +36,10 @@
     </thead>
     <tbody>
       {% for s in trip.stops %}
-      <tr data-stop-id="{{ s.id }}" data-date="{{ s.date }}" data-place="{{ s.place_name or '' }}" data-lat="{{ s.lat if s.lat is not none else '' }}" data-lon="{{ s.lon if s.lon is not none else '' }}">
+      <tr data-stop-id="{{ s.id }}" data-date="{{ s.date }}" data-place="{{ s.place_name or '' }}" data-lat="{{ s.lat if s.lat is not none else '' }}" data-lon="{{ s.lon if s.lon is not none else '' }}" data-campsite-id="{{ s.campsite_id or '' }}">
         <td data-label="Datum">{{ s.date }}</td>
-        <td data-label="Ort">{{ s.place_name or "-" }}</td>
-        <td data-label="Koordinaten">{{ (s.lat ~ ", " ~ s.lon) if s.lat is not none else "-" }}</td>
+        <td data-label="Ort">{{ s.effective_place_name or "-" }}{% if s.campsite_id %} <span class="badge">Stellplatz</span>{% endif %}</td>
+        <td data-label="Koordinaten">{{ (s.effective_lat ~ ", " ~ s.effective_lon) if s.effective_lat is not none else "-" }}</td>
         <td class="actions">
           <button type="button" class="btn btn-secondary btn-small edit-stop">{{ icons.pencil() }} Bearbeiten</button>
           <button type="button" class="btn btn-danger btn-small delete-stop">{{ icons.trash() }} Löschen</button>
@@ -62,6 +62,13 @@
           <input type="date" id="edit-date" min="{{ trip.start_date }}" max="{{ trip.end_date }}" required>
         </div>
         <div class="form-group">
+          <label for="edit-campsite">Stellplatz (optional)</label>
+          <select id="edit-campsite">
+            <option value="">– eigener Ort –</option>
+            {% for c in campsites %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
           <label for="edit-place">Ort (optional)</label>
           <input type="text" id="edit-place" autocomplete="off">
         </div>
@@ -76,6 +83,7 @@
         <button type="submit" class="btn btn-primary">Änderungen speichern</button>
         <button type="button" class="btn btn-secondary" id="edit-cancel">Abbrechen</button>
       </div>
+      <div class="lookup" id="edit-lookup" aria-live="polite"></div>
       <p class="form-error" id="edit-error"></p>
     </form>
   </div>
@@ -91,6 +99,13 @@
           <input type="date" id="stop-date" min="{{ trip.start_date }}" max="{{ trip.end_date }}" value="{{ trip.start_date }}" required>
         </div>
         <div class="form-group">
+          <label for="stop-campsite">Stellplatz (optional)</label>
+          <select id="stop-campsite">
+            <option value="">– eigener Ort –</option>
+            {% for c in campsites %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
           <label for="stop-place">Ort (optional)</label>
           <input type="text" id="stop-place" autocomplete="off" placeholder="z.B. Verona">
         </div>
@@ -104,6 +119,7 @@
         </div>
         <button type="submit" class="btn btn-primary" id="stop-submit">Stopp speichern</button>
       </div>
+      <div class="lookup" id="stop-lookup" aria-live="polite"></div>
       <p class="form-error" id="stop-error"></p>
     </form>
   </div>
@@ -149,6 +165,122 @@
     return value ? parseFloat(value) : null;
   }
 
+  // --- coordinate lookup for a typed place name ---------------------------------
+  // When the place field is left and no coordinates are entered, ask the server
+  // once. One match fills the coordinates, several are offered, nothing found or
+  // an unreachable service never blocks the form. Entered coordinates are never
+  // overwritten. Nothing is searched while typing.
+  function attachLookup(placeId, latId, lonId, boxId) {
+    const place = document.getElementById(placeId);
+    const lat = document.getElementById(latId);
+    const lon = document.getElementById(lonId);
+    const box = document.getElementById(boxId);
+    let lastQuery = null;
+    let serial = 0;
+    let pending = Promise.resolve();
+
+    const coordinatesEmpty = () => !lat.value && !lon.value;
+
+    function show(message, places) {
+      box.replaceChildren();
+      if (!message) return;
+      const text = document.createElement('p');
+      text.className = 'lookup-hint';
+      text.textContent = message;
+      box.append(text);
+      if (places) {
+        const list = document.createElement('div');
+        list.className = 'lookup-choices';
+        places.forEach((p) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn btn-secondary btn-small';
+          button.textContent = p.label;
+          button.addEventListener('click', () => {
+            lat.value = p.lat;
+            lon.value = p.lon;
+            show(`Koordinaten für „${p.label}“ eingetragen.`);
+            addAttribution();
+          });
+          list.append(button);
+        });
+        box.append(list);
+      }
+    }
+
+    function addAttribution() {
+      const small = document.createElement('p');
+      small.className = 'lookup-attribution';
+      const link = document.createElement('a');
+      link.href = 'https://www.openstreetmap.org/copyright';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'OpenStreetMap-Mitwirkende';
+      small.append('© ', link);
+      box.append(small);
+    }
+
+    async function lookup(query, mine) {
+      show('Suche Koordinaten …');
+      let data;
+      try {
+        const res = await fetch('/api/geocode?q=' + encodeURIComponent(query));
+        if (!res.ok) throw new Error('lookup failed');
+        data = await res.json();
+      } catch {
+        if (mine === serial) show('Ortssuche gerade nicht erreichbar. Koordinaten bitte von Hand eintragen.');
+        return;
+      }
+      // The user may have moved on or typed coordinates meanwhile.
+      if (mine !== serial || !coordinatesEmpty() || place.value.trim() !== query) {
+        show('');
+        return;
+      }
+      if (data.unavailable) {
+        show('Ortssuche gerade nicht erreichbar. Koordinaten bitte von Hand eintragen.');
+      } else if (data.results.length === 0) {
+        show('Kein Ort gefunden. Koordinaten bitte von Hand eintragen.');
+      } else if (data.results.length === 1) {
+        const p = data.results[0];
+        lat.value = p.lat;
+        lon.value = p.lon;
+        show(`Koordinaten für „${p.label}“ eingetragen.`);
+        addAttribution();
+      } else {
+        show('Mehrere Orte gefunden, bitte auswählen:', data.results);
+        addAttribution();
+      }
+    }
+
+    place.addEventListener('input', () => { lastQuery = null; });
+    place.addEventListener('blur', () => {
+      const query = place.value.trim();
+      if (query.length < 2 || !coordinatesEmpty() || query === lastQuery) return;
+      lastQuery = query;
+      serial += 1;
+      pending = lookup(query, serial);
+    });
+    // Saving right after typing must wait for the answer.
+    return { settled: () => pending };
+  }
+
+  // With a campsite chosen the stop takes over its place: the own place fields are
+  // cleared and disabled. Returns a function that tells if a campsite is chosen.
+  function bindCampsite(selectId, fieldIds, boxId) {
+    const select = document.getElementById(selectId);
+    const fields = fieldIds.map((id) => document.getElementById(id));
+    const apply = () => {
+      const chosen = select.value !== '';
+      fields.forEach((field) => {
+        if (chosen) field.value = '';
+        field.disabled = chosen;
+      });
+      if (chosen) document.getElementById(boxId).replaceChildren();
+    };
+    select.addEventListener('change', apply);
+    return { apply, campsiteId: () => (select.value ? parseInt(select.value, 10) : null) };
+  }
+
   // Sends a JSON request. Returns true on success, otherwise shows the server's
   // message (or a generic one) in errorEl and returns false.
   async function send(method, url, payload, errorEl) {
@@ -174,9 +306,12 @@
 
   // --- stops: adding (always available) --------------------------------------
   const stopError = document.getElementById('stop-error');
+  const addLookup = attachLookup('stop-place', 'stop-lat', 'stop-lon', 'stop-lookup');
+  const addCampsite = bindCampsite('stop-campsite', ['stop-place', 'stop-lat', 'stop-lon'], 'stop-lookup');
 
   document.getElementById('stop-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    await addLookup.settled();
     const date = document.getElementById('stop-date').value;
     if (!date) {
       stopError.textContent = 'Bitte ein Datum angeben.';
@@ -188,6 +323,7 @@
       place_name: place || null,
       lat: numberOrNull('stop-lat'),
       lon: numberOrNull('stop-lon'),
+      campsite_id: addCampsite.campsiteId(),
     };
     if (await send('POST', `/api/trips/${TRIP_ID}/stops`, payload, stopError)) {
       camperlogFlash('Stopp gespeichert', place ? `${date} · ${place}` : date);
@@ -198,6 +334,8 @@
   // --- stops: editing (own form, shown on demand) -------------------------------
   const editCard = document.getElementById('stop-edit-card');
   const editError = document.getElementById('edit-error');
+  const editLookup = attachLookup('edit-place', 'edit-lat', 'edit-lon', 'edit-lookup');
+  const editCampsite = bindCampsite('edit-campsite', ['edit-place', 'edit-lat', 'edit-lon'], 'edit-lookup');
   let editingStopId = null;
 
   function closeEditForm() {
@@ -214,6 +352,8 @@
       document.getElementById('edit-place').value = row.place;
       document.getElementById('edit-lat').value = row.lat;
       document.getElementById('edit-lon').value = row.lon;
+      document.getElementById('edit-campsite').value = row.campsiteId;
+      editCampsite.apply();
       editError.textContent = '';
       editCard.hidden = false;
       editCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -223,6 +363,7 @@
 
   document.getElementById('stop-edit-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    await editLookup.settled();
     const date = document.getElementById('edit-date').value;
     if (!date) {
       editError.textContent = 'Bitte ein Datum angeben.';
@@ -233,6 +374,7 @@
       place_name: document.getElementById('edit-place').value.trim() || null,
       lat: numberOrNull('edit-lat'),
       lon: numberOrNull('edit-lon'),
+      campsite_id: editCampsite.campsiteId(),
     };
     if (await send('PUT', `/api/stops/${editingStopId}`, payload, editError)) {
       camperlogFlash('Änderungen gespeichert');

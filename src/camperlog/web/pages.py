@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 
 from camperlog.consumption import consumption_labels
 from camperlog.db import Session, get_session
+from camperlog.services.campsites import effective_statuses, list_campsites
 from camperlog.services.expenses import list_fuel_entries
 from camperlog.services.trips import get_trip, list_trips
 from camperlog.web.auth import require_login
@@ -108,5 +109,32 @@ def trip_detail(
     return templates.TemplateResponse(
         request=request,
         name="trip.html",
-        context={"show_logout": True, "trip": get_trip(session, trip_id)},
+        context={
+            "show_logout": True,
+            "trip": get_trip(session, trip_id),
+            "campsites": list_campsites(session),
+        },
+    )
+
+
+@router.get("/map", response_class=HTMLResponse)
+def map_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="map.html",
+        context={"show_logout": True, "active_nav": "map"},
+    )
+
+
+@router.get("/campsites", response_class=HTMLResponse)
+def campsites_page(request: Request, session: Session = Depends(get_session)):
+    return templates.TemplateResponse(
+        request=request,
+        name="campsites.html",
+        context={
+            "show_logout": True,
+            "active_nav": "campsites",
+            "campsites": list_campsites(session),
+            "statuses": effective_statuses(session),
+        },
     )

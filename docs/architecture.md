@@ -44,6 +44,7 @@ src/camperlog/
     campsites.py       campsites, effective status
     expenses.py        expenses, categories, trip suggestion, trip total
     sharing.py         create/deactivate share links, public views
+    geocoding.py       look up coordinates for a place name (Nominatim, M3)
   cli.py               Click root, registers the groups from commands/
   commands/            one module per Click group: trip.py, campsite.py, expense.py, fuel.py
   web/
@@ -77,7 +78,7 @@ Decisions:
 
 - **Order of stops:** sorted by `date`, for the same date by `position` (order of entry within the day). Manual reordering is not planned for now. The date of a stop must lie within the period of its trip; `services/trips.py` checks this.
 - **Deleting:** a trip takes its stops with it. The service rejects deleting a campsite that stops reference.
-- **Location of a stop:** with a campsite reference, the campsite's location applies. Coordinates of the stop itself are then ignored.
+- **Location of a stop:** a stop is either tied to a campsite or has a place of its own, not both. With a campsite reference the campsite's name and coordinates apply (`Stop.effective_place_name/lat/lon`). The service rejects a stop that has a campsite and an own place name or coordinates at the same time, instead of silently ignoring one of them.
 - **Effective status of a campsite** is computed on read: "visited" if the manual status is "visited" **or** a stop with a date ≤ today references it. If the status were set on save, a stop planned in the future would wrongly stay "bookmarked" after its date.
 - **Refueling:** one row in `expenses` with the fuel fields filled. `services/expenses.py` enforces: category Fuel exactly when liters, price per liter and odometer reading are set. The amount of a fuel expense is computed from liters × price.
 - **Category Fuel** is created by a migration, with `protected = true`. The service rejects renaming and deleting protected categories. Other categories can only be deleted if no expense uses them.
@@ -108,6 +109,7 @@ Server-rendered Jinja pages with a shared `base.html`, no SPA ([ADR 0005](adr/00
 
 - **Login:** one password from `CAMPERLOG_PASSWORD`, compared with `secrets.compare_digest`. On success a signed session cookie via Starlette `SessionMiddleware` (secret from `CAMPERLOG_SECRET_KEY`, `https_only` in production). Private routes depend on a shared FastAPI dependency: pages redirect to `/login`, the API answers 401.
 - **Map:** Leaflet with OpenStreetMap tiles via CDN (like Chart.js), data as GeoJSON from `/api/map`. Two views: retrospective (visited campsites, free-standing stops with coordinates, straight lines per trip can be toggled on) and bookmark list. Coordinates are entered by clicking on the map or by hand.
+- **Coordinate lookup:** `GET /api/geocode?q=…` (login required) asks OpenStreetMap Nominatim from the server ([ADR 0006](adr/0006-coordinate-lookup-via-nominatim-on-the-server.md)) and returns up to five matches (name, region, country, lat, lon). The stop form calls it when the place field is left and no coordinates are entered. The server sends an identifying `User-Agent`, makes at most one request per second and caches results. Failures and timeouts are answered with an empty result, so the form never blocks. Tests replace the service with a fake.
 - **Share links:** the token comes from `secrets.token_urlsafe(16)`. `services/sharing.py` provides separate, reduced data objects for the share view **without amount fields**. The share template therefore gets no costs at all. Deactivated or unknown tokens return 404, with no difference between the two cases.
 
 ## CLI
@@ -124,7 +126,7 @@ Server-rendered Jinja pages with a shared `base.html`, no SPA ([ADR 0005](adr/00
 
 Without the password or the secret key the web server does not start, so no instance accidentally goes online unprotected.
 
-New dependencies: `alembic`, `itsdangerous` (for `SessionMiddleware`), `python-multipart` (login form).
+New dependencies: `alembic`, `itsdangerous` (for `SessionMiddleware`), `python-multipart` (login form), `httpx` (server-side coordinate lookup; today dev-only, becomes a production dependency in M3).
 
 ## Tests
 
@@ -138,7 +140,7 @@ New dependencies: `alembic`, `itsdangerous` (for `SessionMiddleware`), `python-m
 |---|---|
 | M1 Login | split `web/` (`app.py`, `auth.py`, `pages.py`, `api.py`), `base.html`, start-up check of the environment variables |
 | M2 Trip with stops | `db.py` + `services/`, switch to `MappedAsDataclass`, Alembic baseline + migration of the trips, introduce `commands/` |
-| M3 Campsite + map | `services/campsites.py`, Leaflet, `/api/map` |
+| M3 Campsite + map | `services/campsites.py`, `services/geocoding.py`, Leaflet, `/api/map`, `/api/geocode` |
 | M4 Expenses | `services/expenses.py`, categories, migration of the fuel entries, switch `consumption.py` to fuel expenses |
 | M5 Share links | `services/sharing.py`, `web/share.py`, share templates |
 

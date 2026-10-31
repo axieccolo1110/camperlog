@@ -1,11 +1,21 @@
 """JSON API under ``/api``. All routes require a login."""
 
 import datetime as dt
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 
 from camperlog.db import Session, get_session
+from camperlog.labels import status_label
+from camperlog.services.campsites import (
+    add_campsite,
+    effective_statuses,
+    list_bookmarked_campsites,
+    list_campsites,
+)
 from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
+from camperlog.services.geocoding import Geocoder, GeocodingUnavailable, get_geocoder
+from camperlog.services.map_data import retrospective
 from camperlog.services.trips import (
     add_stop,
     add_trip,
@@ -18,8 +28,12 @@ from camperlog.services.trips import (
 )
 from camperlog.web.auth import require_login
 from camperlog.web.schemas import (
+    CampsiteCreate,
+    CampsiteRead,
     FuelEntryCreate,
     FuelEntryRead,
+    GeocodeResponse,
+    PlaceRead,
     StopCreate,
     StopRead,
     TripCreate,
@@ -82,6 +96,7 @@ def create_stop(
         body.place_name,
         body.lat,
         body.lon,
+        body.campsite_id,
     )
     return StopRead.model_validate(stop)
 
@@ -97,6 +112,7 @@ def replace_stop(
         body.place_name,
         body.lat,
         body.lon,
+        body.campsite_id,
     )
     return StopRead.model_validate(stop)
 
@@ -105,6 +121,35 @@ def replace_stop(
 def remove_stop(stop_id: int, session: Session = Depends(get_session)):
     delete_stop(session, stop_id)
     return Response(status_code=204)
+
+
+@router.get("/campsites", response_model=list[CampsiteRead])
+def get_campsites(session: Session = Depends(get_session)):
+    statuses = effective_statuses(session)
+    return [
+        CampsiteRead.model_validate(c).model_copy(
+            update={"effective_status": statuses[c.id]}
+        )
+        for c in list_campsites(session)
+    ]
+
+
+@router.post("/campsites", response_model=CampsiteRead, status_code=201)
+def create_campsite(body: CampsiteCreate, session: Session = Depends(get_session)):
+    campsite = add_campsite(
+        session,
+        body.name,
+        body.lat,
+        body.lon,
+        body.status,
+        body.notes,
+        body.playground,
+        body.pets_allowed,
+        body.external_url,
+    )
+    return CampsiteRead.model_validate(campsite).model_copy(
+        update={"effective_status": effective_statuses(session)[campsite.id]}
+    )
 
 
 @router.get("/fuel", response_model=list[FuelEntryRead])
@@ -122,3 +167,105 @@ def create_fuel(body: FuelEntryCreate, session: Session = Depends(get_session)):
         body.odometer,
     )
     return FuelEntryRead.model_validate(entry)
+
+
+@router.get("/geocode", response_model=GeocodeResponse)
+def geocode(
+    q: str = Query("", max_length=200),
+    geocoder: Geocoder = Depends(get_geocoder),
+):
+    """Look up coordinates for a place name. Never fails: if the service cannot be
+    reached the answer says so (``unavailable``) and the form keeps working."""
+    try:
+        places = geocoder.search(q)
+    except GeocodingUnavailable:
+        return GeocodeResponse(results=[], unavailable=True)
+    return GeocodeResponse(
+        results=[
+            PlaceRead(
+                name=p.name,
+                region=p.region,
+                country=p.country,
+                lat=p.lat,
+                lon=p.lon,
+                label=p.label,
+            )
+            for p in places
+        ]
+    )
+
+
+def _campsite_feature(campsite: Any, status: str) -> dict[str, Any]:
+    """A campsite as a GeoJSON feature. Note: GeoJSON wants [longitude, latitude]."""
+    return {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [campsite.lon, campsite.lat]},
+        "properties": {
+            "kind": "campsite",
+            "id": campsite.id,
+            "name": campsite.name,
+            "status": status,
+            "status_label": status_label(status),
+            "notes": campsite.notes,
+            "playground": campsite.playground,
+            "pets_allowed": campsite.pets_allowed,
+            "external_url": campsite.external_url,
+        },
+    }
+
+
+def _trip_label(start: dt.date, end: dt.date) -> str:
+    return f"{start.isoformat()} – {end.isoformat()}"
+
+
+@router.get("/map")
+def map_data(
+    view: Literal["bookmarks", "retrospective"] = "bookmarks",
+    session: Session = Depends(get_session),
+) -> dict[str, Any]:
+    """The data of the map as GeoJSON.
+
+    - ``bookmarks``: the campsites that are still only bookmarked.
+    - ``retrospective``: the visited campsites, the free-standing stops with
+      coordinates, and per trip a line through its places in order.
+    """
+    if view == "bookmarks":
+        features = [
+            _campsite_feature(c, "bookmarked")
+            for c in list_bookmarked_campsites(session)
+        ]
+        return {"type": "FeatureCollection", "features": features}
+
+    past = retrospective(session)
+    features = [_campsite_feature(c, "visited") for c in past.campsites]
+    features += [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [p.lon, p.lat]},
+            "properties": {
+                "kind": "stop",
+                "id": p.stop_id,
+                "trip_id": p.trip_id,
+                "name": p.place_name,
+                "date": p.date.isoformat(),
+            },
+        }
+        for p in past.stops
+    ]
+    features += [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[lon, lat] for lat, lon in r.points],
+            },
+            "properties": {
+                "kind": "route",
+                "trip_id": r.trip_id,
+                "label": _trip_label(r.start_date, r.end_date),
+                "places": len(r.points),
+            },
+        }
+        for r in past.routes
+    ]
+    return {"type": "FeatureCollection", "features": features}

@@ -341,3 +341,109 @@ def test_unknown_stop(session):
         update_stop(session, 999, START, None, None, None)
     with pytest.raises(NotFoundError):
         delete_stop(session, 999)
+
+
+# --- stops tied to a campsite -------------------------------------------------
+
+from camperlog.services.campsites import add_campsite  # noqa: E402
+
+
+@pytest.fixture
+def campsite(session):
+    return add_campsite(session, "Wiese am See", 46.668, 11.159)
+
+
+def test_stop_takes_over_the_place_of_its_campsite(session, trip, campsite):
+    stop = add_stop(session, trip.id, START, campsite_id=campsite.id)
+
+    loaded = get_trip(session, trip.id).stops[0]
+    assert loaded.id == stop.id
+    assert loaded.campsite_id == campsite.id
+    assert (
+        loaded.effective_place_name,
+        loaded.effective_lat,
+        loaded.effective_lon,
+    ) == (
+        "Wiese am See",
+        46.668,
+        11.159,
+    )
+    assert (loaded.place_name, loaded.lat, loaded.lon) == (None, None, None)
+
+
+def test_free_standing_stop_uses_its_own_place(session, trip):
+    stop = add_stop(session, trip.id, START, "Verona", 45.4, 10.9)
+
+    assert (stop.effective_place_name, stop.effective_lat, stop.effective_lon) == (
+        "Verona",
+        45.4,
+        10.9,
+    )
+
+
+def test_stop_with_campsite_is_readable_after_the_session_closed(
+    session, trip, campsite
+):
+    add_stop(session, trip.id, START, campsite_id=campsite.id)
+
+    with session_scope() as other:
+        stops = list_trips(other)[0].stops
+    assert stops[0].effective_place_name == "Wiese am See"  # no lazy load needed
+
+
+@pytest.mark.parametrize(
+    "extra", [{"place_name": "Verona"}, {"lat": 45.4, "lon": 10.9}, {"lat": 45.4}]
+)
+def test_campsite_and_own_place_exclude_each_other(session, trip, campsite, extra):
+    with pytest.raises(ValidationError, match="Stellplatz"):
+        add_stop(session, trip.id, START, campsite_id=campsite.id, **extra)
+    assert get_trip(session, trip.id).stop_count == 0
+
+
+def test_unknown_campsite(session, trip):
+    with pytest.raises(NotFoundError, match="Stellplatz 999"):
+        add_stop(session, trip.id, START, campsite_id=999)
+    assert get_trip(session, trip.id).stop_count == 0
+
+
+def test_stop_with_campsite_still_obeys_the_trip_period(session, trip, campsite):
+    with pytest.raises(ValidationError, match="Zeitraum der Reise"):
+        add_stop(session, trip.id, END + dt.timedelta(days=1), campsite_id=campsite.id)
+
+
+def test_update_stop_ties_it_to_a_campsite_and_back(session, trip, campsite):
+    stop = add_stop(session, trip.id, START, "Verona", 45.4, 10.9)
+
+    tied = update_stop(session, stop.id, START, None, None, None, campsite.id)
+    assert tied.campsite_id == campsite.id
+    assert (tied.place_name, tied.lat, tied.lon) == (None, None, None)
+
+    freed = update_stop(session, stop.id, START, "Rimini", 44.0, 12.5, None)
+    assert freed.campsite_id is None
+    assert freed.effective_place_name == "Rimini"
+
+
+def test_update_stop_rejects_campsite_plus_own_place(session, trip, campsite):
+    stop = add_stop(session, trip.id, START, "Verona")
+
+    with pytest.raises(ValidationError, match="Stellplatz"):
+        update_stop(session, stop.id, START, "Verona", None, None, campsite.id)
+    assert get_stop(session, stop.id).campsite_id is None
+
+
+def test_update_stop_with_unknown_campsite(session, trip):
+    stop = add_stop(session, trip.id, START, "Verona")
+
+    with pytest.raises(NotFoundError):
+        update_stop(session, stop.id, START, None, None, None, 999)
+
+
+def test_a_campsite_can_be_used_by_stops_of_several_trips(session, campsite):
+    first = add_trip(session, START, END)
+    second = add_trip(session, START, END)
+
+    add_stop(session, first.id, START, campsite_id=campsite.id)
+    add_stop(session, second.id, START, campsite_id=campsite.id)
+
+    assert get_trip(session, first.id).stops[0].campsite_id == campsite.id
+    assert get_trip(session, second.id).stops[0].campsite_id == campsite.id

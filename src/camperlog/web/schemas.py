@@ -1,4 +1,5 @@
 from datetime import date as _date
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -37,6 +38,8 @@ class StopCreate(BaseModel):
     place_name: str | None = None
     lat: float | None = Field(default=None, ge=-90, le=90)
     lon: float | None = Field(default=None, ge=-180, le=180)
+    # A stop tied to a campsite takes over its place: then no own place is sent.
+    campsite_id: int | None = None
 
     @field_validator("date")
     @classmethod
@@ -55,12 +58,59 @@ class StopRead(BaseModel):
     place_name: str | None
     lat: float | None
     lon: float | None
+    campsite_id: int | None
+    # What applies: the campsite's place if there is one, else the stop's own.
+    effective_place_name: str | None
+    effective_lat: float | None
+    effective_lon: float | None
 
     _date_to_iso = field_validator("date", mode="before")(_iso_date)
 
 
 class TripDetailRead(TripRead):
     stops: list[StopRead]
+
+
+class CampsiteCreate(BaseModel):
+    name: str
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    status: Literal["visited", "bookmarked"] = "bookmarked"
+    notes: str | None = None
+    playground: bool = False
+    pets_allowed: bool = False
+    external_url: str | None = None
+
+
+class CampsiteRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    lat: float
+    lon: float
+    status: str
+    notes: str | None
+    playground: bool
+    pets_allowed: bool
+    external_url: str | None
+    # Computed on read: "visited" also when a past stop references the campsite.
+    effective_status: str | None = None
+
+
+class PlaceRead(BaseModel):
+    name: str
+    region: str | None
+    country: str | None
+    lat: float
+    lon: float
+    label: str
+
+
+class GeocodeResponse(BaseModel):
+    results: list[PlaceRead]
+    # True if the lookup service could not be reached (not the same as "no match").
+    unavailable: bool = False
 
 
 class FuelEntryCreate(BaseModel):

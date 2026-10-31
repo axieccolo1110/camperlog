@@ -4,7 +4,7 @@ import datetime as dt
 
 import pytest
 from alembic import command
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 from camperlog import db
 
@@ -112,3 +112,37 @@ def test_downgrade_restores_the_old_shape(old_database):
     assert "stops" not in {
         row[0] for row in _rows("SELECT name FROM sqlite_master WHERE type='table'")
     }
+
+
+def test_stops_survive_the_campsite_reference_migration(tmp_path, monkeypatch):
+    """0004 rebuilds the stops table (SQLite batch mode): existing stops must stay."""
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'm4.db'}")
+    try:
+        command.upgrade(db.alembic_config(), "0003_campsites")
+        with db.get_engine().begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO trips (start_date, end_date) "
+                    "VALUES ('2026-08-01', '2026-08-10')"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO stops (trip_id, position, date, place_name, lat, lon) "
+                    "VALUES (1, 1, '2026-08-02', 'Verona', 45.4, 10.9)"
+                )
+            )
+
+        db.upgrade_to_head()
+
+        assert _rows("SELECT place_name, lat, lon, campsite_id FROM stops") == [
+            ("Verona", 45.4, 10.9, None)
+        ]
+        with db.get_engine().connect() as connection:
+            keys = inspect(connection).get_foreign_keys("stops")
+        assert {k["referred_table"] for k in keys} == {"trips", "campsites"}
+
+        command.downgrade(db.alembic_config(), "0003_campsites")
+        assert _rows("SELECT place_name FROM stops") == [("Verona",)]
+    finally:
+        db.dispose_engines()
