@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 from typing import List
 
 from sqlalchemy import (
@@ -8,23 +6,12 @@ from sqlalchemy import (
     Float,
     Integer,
     String,
-    create_engine,
     desc,
 )
 from sqlalchemy.orm import DeclarativeBase, Session
 
+from camperlog.db import get_engine
 from camperlog.models import FuelEntry, Trip
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _get_engine():
-    url = os.environ.get("DATABASE_URL")
-    if url:
-        return create_engine(url)
-    sqlite_path = PROJECT_ROOT / "data" / "camperlog.db"
-    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-    return create_engine(f"sqlite:///{sqlite_path}")
 
 
 class Base(DeclarativeBase):
@@ -52,19 +39,12 @@ class FuelEntryRow(Base):
     total_cost = Column(Float, nullable=False)
 
 
-def init_db():
-    """Initialize the database (creates the schema on first run)."""
-    engine = _get_engine()
-    Base.metadata.create_all(engine)
-    engine.dispose()
-
-
 def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
     """Store a new trip in the database."""
     from datetime import date as date_type
 
     parsed_date = date_type.fromisoformat(date)
-    engine = _get_engine()
+    engine = get_engine()
     with Session(engine) as session:
         row = TripRow(origin=origin, destination=destination, km=km, date=parsed_date)
         session.add(row)
@@ -81,7 +61,7 @@ def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
 
 def get_all_trips() -> List[Trip]:
     """Load all trips from the database."""
-    engine = _get_engine()
+    engine = get_engine()
     with Session(engine) as session:
         rows = session.query(TripRow).order_by(desc(TripRow.date)).all()
         return [
@@ -104,7 +84,7 @@ def add_fuel_entry(
 
     parsed_date = date_type.fromisoformat(date)
     total_cost = liters * price_per_liter
-    engine = _get_engine()
+    engine = get_engine()
     with Session(engine) as session:
         row = FuelEntryRow(
             date=parsed_date,
@@ -128,7 +108,7 @@ def add_fuel_entry(
 
 def get_all_fuel() -> List[FuelEntry]:
     """Load all fuel entries from the database."""
-    engine = _get_engine()
+    engine = get_engine()
     with Session(engine) as session:
         rows = session.query(FuelEntryRow).order_by(desc(FuelEntryRow.date)).all()
         return [

@@ -13,7 +13,7 @@ def test_add_trip(test_db):
 
 
 def test_get_all_trips(test_db):
-    """Test: Alle Reisen werden abgerufen."""
+    """All trips are returned."""
     add_trip("München", "Berlin", 600, "2026-08-01")
     add_trip("Berlin", "Hamburg", 300, "2026-08-05")
 

@@ -8,13 +8,13 @@ from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
 from camperlog.config import ConfigError, require_web_config
-from camperlog.database import init_db
+from camperlog.db import require_current_schema
 from camperlog.web import api, auth, pages
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    require_current_schema()
     yield
 
 

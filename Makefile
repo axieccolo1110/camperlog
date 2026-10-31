@@ -38,10 +38,12 @@ run:
 	python -m camperlog.cli --help
 
 serve:
+	alembic upgrade head
 	camperlog serve --reload
 
 serve-prod:
 	@test -n "$$DATABASE_URL" || (echo "Fehler: DATABASE_URL ist nicht gesetzt." && exit 1)
+	alembic upgrade head
 	DATABASE_URL="$$DATABASE_URL" camperlog serve
 
 clean:

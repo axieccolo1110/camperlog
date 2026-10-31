@@ -67,6 +67,15 @@ pip install -r requirements-dev.txt
 pip install -e .
 ```
 
+### Create the database
+The schema is managed with Alembic. Create or update the local database (SQLite in `data/camperlog.db`, or the one in `DATABASE_URL`) once after installing and after every update that changes the schema:
+
+```bash
+camperlog db upgrade
+```
+
+CLI commands abort with a hint to this command if the schema is outdated. `make serve` runs the migrations for you.
+
 Afterwards `camperlog` is available as a global command:
 ```bash
 camperlog --help
@@ -154,7 +163,7 @@ Then open `http://127.0.0.1:8000`. A secret key can be generated with:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-On Railway, set both variables under *Variables*. The CLI commands (`camperlog trip …`, `camperlog fuel …`) do not need them.
+On Railway, set both variables under *Variables*. The start command runs `alembic upgrade head` before the server starts. A production database that was created before Alembic was introduced must be adopted **once** by hand, without data loss: run `alembic stamp 0001_baseline` against it (with `DATABASE_URL` set), then deploy. The CLI commands (`camperlog trip …`, `camperlog fuel …`) do not need them.
 
 ---
 
@@ -183,7 +192,7 @@ CREATE TABLE fuel_entries (
 )
 ```
 
-**Location:** `data/camperlog.db` (relative to the project root)
+**Location:** `data/camperlog.db` (relative to the project root). The tables are created by the Alembic baseline revision `0001_baseline`.
 
 ---
 
@@ -196,6 +205,7 @@ camperlog/
 │   ├── __init__.py
 │   ├── cli.py              # Click CLI commands
 │   ├── config.py           # required variables for the web server
+│   ├── db.py               # engine, schema check, migrations entry point
 │   ├── database.py         # SQLite operations
 │   ├── models.py           # data classes (Trip, FuelEntry)
 │   ├── commands/
@@ -206,10 +216,13 @@ camperlog/
 │       ├── api.py          # JSON API /api/*
 │       ├── schemas.py      # Pydantic models
 │       └── templates/      # base.html, login.html, dashboard.html
+├── migrations/             # Alembic environment and revisions
+├── alembic.ini             # Alembic configuration
 ├── tests/
 │   ├── test_cli.py         # CLI tests
 │   ├── test_config.py      # start-up check of the web server
 │   ├── test_database.py    # database function tests
+│   ├── test_db.py          # engine, migrations, schema check
 │   └── integration/        # web tests (login, API, dashboard)
 ├── data/                   # database directory
 ├── docs/                   # documentation
@@ -228,6 +241,7 @@ camperlog/
 - `fastapi`, `uvicorn`, `jinja2` – web server and dashboard
 - `itsdangerous` – signature of the session cookies
 - `python-multipart` – login form
+- `alembic` – database migrations
 
 **Development:**
 - `pytest>=7.0` – testing framework

@@ -133,7 +133,7 @@ def test_fuel_add_invalid_date(runner, test_db):
 
 @pytest.mark.parametrize("km", ["0", "-5"])
 def test_trip_add_rejects_non_positive_km(runner, test_db, km):
-    """Test: trip-add lehnt km < 1 ab."""
+    """trip add rejects km < 1."""
     result = runner.invoke(
         cli,
         [

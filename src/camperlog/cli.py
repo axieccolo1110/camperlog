@@ -1,7 +1,7 @@
 import click
 from camperlog.consumption import consumption_labels
+from camperlog.db import SchemaOutdatedError, require_current_schema, upgrade_to_head
 from camperlog.database import (
-    init_db,
     add_trip,
     get_all_trips,
     add_fuel_entry,
@@ -27,9 +27,29 @@ def _validate_date(ctx, param, value):
 
 
 @click.group()
-def cli():
+@click.pass_context
+def cli(ctx):
     """CamperLog – Dein Reisetagebuch für den Globetrail."""
-    init_db()
+    # `db` must work on an outdated schema (it fixes it), `serve` checks on its own.
+    if ctx.invoked_subcommand in ("db", "serve"):
+        return
+    try:
+        require_current_schema()
+    except SchemaOutdatedError as e:
+        raise click.ClickException(str(e))
+
+
+@cli.group()
+def db():
+    """Datenbank verwalten."""
+    pass
+
+
+@db.command("upgrade")
+def db_upgrade():
+    """Wendet alle ausstehenden Datenbank-Migrationen an."""
+    upgrade_to_head()
+    console.print("[green]✓ Datenbank ist auf dem neuesten Stand.[/green]")
 
 
 @cli.group()
@@ -155,6 +175,10 @@ def serve(host, port, reload):
     try:
         require_web_config()
     except ConfigError as e:
+        raise click.ClickException(str(e))
+    try:
+        require_current_schema()
+    except SchemaOutdatedError as e:
         raise click.ClickException(str(e))
 
     uvicorn.run("camperlog.web.app:app", host=host, port=port, reload=reload)
