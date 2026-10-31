@@ -1,0 +1,102 @@
+{% macro box(id) %}<div class="lookup" id="{{ id }}" aria-live="polite"></div>{% endmacro %}
+
+<script>
+  // --- coordinate lookup for a typed place name ---------------------------------
+  // When the place field is left and no coordinates are entered, ask the server
+  // once. One match fills the coordinates, several are offered, nothing found or
+  // an unreachable service never blocks the form. Entered coordinates are never
+  // overwritten. Nothing is searched while typing.
+  function attachLookup(placeId, latId, lonId, boxId) {
+    const place = document.getElementById(placeId);
+    const lat = document.getElementById(latId);
+    const lon = document.getElementById(lonId);
+    const box = document.getElementById(boxId);
+    let lastQuery = null;
+    let serial = 0;
+    let pending = Promise.resolve();
+
+    const coordinatesEmpty = () => !lat.value && !lon.value;
+
+    function show(message, places) {
+      box.replaceChildren();
+      if (!message) return;
+      const text = document.createElement('p');
+      text.className = 'lookup-hint';
+      text.textContent = message;
+      box.append(text);
+      if (places) {
+        const list = document.createElement('div');
+        list.className = 'lookup-choices';
+        places.forEach((p) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn btn-secondary btn-small';
+          button.textContent = p.label;
+          button.addEventListener('click', () => {
+            lat.value = p.lat;
+            lon.value = p.lon;
+            show(`Koordinaten für „${p.label}“ eingetragen.`);
+            addAttribution();
+          });
+          list.append(button);
+        });
+        box.append(list);
+      }
+    }
+
+    function addAttribution() {
+      const small = document.createElement('p');
+      small.className = 'lookup-attribution';
+      const link = document.createElement('a');
+      link.href = 'https://www.openstreetmap.org/copyright';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'OpenStreetMap-Mitwirkende';
+      small.append('© ', link);
+      box.append(small);
+    }
+
+    async function lookup(query, mine) {
+      show('Suche Koordinaten …');
+      let data;
+      try {
+        const res = await fetch('/api/geocode?q=' + encodeURIComponent(query));
+        if (!res.ok) throw new Error('lookup failed');
+        data = await res.json();
+      } catch {
+        if (mine === serial) show('Ortssuche gerade nicht erreichbar. Koordinaten bitte von Hand eintragen.');
+        return;
+      }
+      // The user may have moved on or typed coordinates meanwhile.
+      if (mine !== serial || !coordinatesEmpty() || place.value.trim() !== query) {
+        show('');
+        return;
+      }
+      if (data.unavailable) {
+        show('Ortssuche gerade nicht erreichbar. Koordinaten bitte von Hand eintragen.');
+      } else if (data.results.length === 0) {
+        show('Kein Ort gefunden. Koordinaten bitte von Hand eintragen.');
+      } else if (data.results.length === 1) {
+        const p = data.results[0];
+        lat.value = p.lat;
+        lon.value = p.lon;
+        show(`Koordinaten für „${p.label}“ eingetragen.`);
+        addAttribution();
+      } else {
+        show('Mehrere Orte gefunden, bitte auswählen:', data.results);
+        addAttribution();
+      }
+    }
+
+    place.addEventListener('input', () => { lastQuery = null; });
+    place.addEventListener('blur', () => {
+      const query = place.value.trim();
+      if (query.length < 2 || !coordinatesEmpty() || query === lastQuery) return;
+      lastQuery = query;
+      serial += 1;
+      pending = lookup(query, serial);
+    });
+    // Saving right after typing must wait for the answer.
+    return { settled: () => pending };
+  }
+</script>

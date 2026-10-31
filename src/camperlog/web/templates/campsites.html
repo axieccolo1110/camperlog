@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_lookup.html" as lookup %}
 
 {% block title %}Stellplätze – CamperLog{% endblock %}
 {% block heading %}Stellplätze{% endblock %}
@@ -55,6 +56,7 @@
           </select>
         </div>
       </div>
+      {{ lookup.box('campsite-lookup') }}
       <div class="form-row">
         <div class="form-group">
           <label for="campsite-url">Link (optional, z.B. Park4Night)</label>
@@ -75,9 +77,13 @@
 {% endblock %}
 
 {% block scripts %}
+{% include "_lookup.html" %}
 <script>
+  const campsiteLookup = attachLookup('campsite-name', 'campsite-lat', 'campsite-lon', 'campsite-lookup');
+
   document.getElementById('campsite-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    await campsiteLookup.settled();
     const errorEl = document.getElementById('campsite-error');
     errorEl.textContent = '';
 

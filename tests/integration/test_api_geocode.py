@@ -100,3 +100,16 @@ def test_trip_page_wires_the_lookup_into_both_forms(api_client):
     assert "/api/geocode?q=" in html
     assert "https://www.openstreetmap.org/copyright" in html
     assert "OpenStreetMap-Mitwirkende" in html
+
+
+def test_campsites_page_wires_the_lookup_into_the_form(api_client):
+    html = api_client.get("/campsites").text
+
+    assert (
+        "attachLookup('campsite-name', 'campsite-lat', 'campsite-lon', "
+        "'campsite-lookup')" in html
+    )
+    assert 'id="campsite-lookup"' in html
+    assert "/api/geocode?q=" in html
+    assert "https://www.openstreetmap.org/copyright" in html
+    assert "OpenStreetMap-Mitwirkende" in html
