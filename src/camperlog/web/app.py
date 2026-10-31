@@ -1,4 +1,4 @@
-"""FastAPI-App: Lifespan, Session-Middleware, Router und Healthcheck."""
+"""FastAPI app: lifespan, session middleware, routers and health check."""
 
 import os
 from contextlib import asynccontextmanager
@@ -19,11 +19,11 @@ async def lifespan(app: FastAPI):
 
 
 def use_https_only_cookie() -> bool:
-    """Session-Cookie nur über HTTPS schicken?
+    """Send the session cookie over HTTPS only?
 
-    Railway setzt ``RAILWAY_ENVIRONMENT`` automatisch in jedem Deployment, dort
-    läuft die Seite immer über HTTPS. Lokal (``http://127.0.0.1``) wäre ein
-    Secure-Cookie unbrauchbar, weil der Browser es nicht zurückschickt.
+    Railway sets ``RAILWAY_ENVIRONMENT`` automatically in every deployment, and
+    the site is always served over HTTPS there. Locally (``http://127.0.0.1``) a
+    Secure cookie would be useless because the browser does not send it back.
     """
     return bool(os.environ.get("RAILWAY_ENVIRONMENT"))
 
@@ -54,14 +54,14 @@ def _build_app() -> FastAPI:
     try:
         return create_app()
     except ConfigError as e:
-        # Railway startet uvicorn direkt. SystemExit mit Text gibt nur die Meldung
-        # aus statt eines Tracebacks und beendet den Prozess mit Fehlercode 1.
+        # Railway starts uvicorn directly. SystemExit with a string prints only the
+        # message instead of a traceback and ends the process with exit code 1.
         raise SystemExit(f"Fehler: {e}") from None
 
 
 def __getattr__(name: str) -> FastAPI:
-    # ``app`` wird erst beim ersten Zugriff gebaut (uvicorn ``camperlog.web.app:app``).
-    # Ein Import des Moduls, etwa in Tests, braucht deshalb keine Umgebungsvariablen.
+    # ``app`` is built on first access (uvicorn ``camperlog.web.app:app``), so
+    # importing the module, e.g. in tests, needs no environment variables.
     if name == "app":
         return _build_app()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -7,7 +7,7 @@ SECRET_KEY = "test-secret-key"
 
 @pytest.fixture
 def web_env(tmp_path, monkeypatch):
-    """Isolierte Umgebung für die Web-App: Test-DB, Passwort, Secret."""
+    """Isolated environment for the web app: test DB, password, secret."""
     db_file = tmp_path / "test_api.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
     monkeypatch.setenv("CAMPERLOG_PASSWORD", PASSWORD)
@@ -17,7 +17,7 @@ def web_env(tmp_path, monkeypatch):
 
 @pytest.fixture
 def anon_client(web_env):
-    """Client ohne Login."""
+    """Client without a login."""
     from camperlog.web.app import create_app
 
     with TestClient(create_app(), follow_redirects=False) as client:
@@ -26,7 +26,7 @@ def anon_client(web_env):
 
 @pytest.fixture
 def api_client(anon_client):
-    """Eingeloggter Client (Session-Cookie gesetzt)."""
+    """Logged-in client (session cookie set)."""
     r = anon_client.post("/login", data={"password": PASSWORD})
     assert r.status_code == 303
     anon_client.follow_redirects = True

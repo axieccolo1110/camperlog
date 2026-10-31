@@ -1,7 +1,7 @@
-"""Konfiguration aus Umgebungsvariablen.
+"""Configuration from environment variables.
 
-Der Webserver startet nur, wenn Passwort und Secret gesetzt sind. So geht keine
-Instanz versehentlich ohne Schutz online.
+The web server only starts if the password and the secret key are set, so no
+instance accidentally goes online unprotected.
 """
 
 import os
@@ -10,16 +10,16 @@ REQUIRED_WEB_VARS = ("CAMPERLOG_PASSWORD", "CAMPERLOG_SECRET_KEY")
 
 
 class ConfigError(RuntimeError):
-    """Die Konfiguration ist unvollständig."""
+    """The configuration is incomplete."""
 
 
 def missing_web_vars() -> list[str]:
-    """Namen der Pflichtvariablen für den Webserver, die fehlen oder leer sind."""
+    """Names of the required web server variables that are missing or empty."""
     return [name for name in REQUIRED_WEB_VARS if not os.environ.get(name, "").strip()]
 
 
 def require_web_config() -> None:
-    """Bricht mit klarer Meldung ab, wenn für den Webserver etwas fehlt."""
+    """Raise ConfigError with a clear (German) message if a variable is missing."""
     missing = missing_web_vars()
     if missing:
         raise ConfigError(

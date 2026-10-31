@@ -10,7 +10,7 @@ def runner():
 
 
 def test_trip_add_valid(runner, test_db):
-    """Test: trip-add mit gültigen Parametern."""
+    """trip add with valid parameters."""
     result = runner.invoke(
         cli,
         [
@@ -32,7 +32,7 @@ def test_trip_add_valid(runner, test_db):
 
 
 def test_trip_add_invalid_date(runner, test_db):
-    """Test: trip-add mit ungültigem Datum."""
+    """trip add with an invalid date."""
     result = runner.invoke(
         cli,
         [
@@ -54,7 +54,7 @@ def test_trip_add_invalid_date(runner, test_db):
 
 
 def test_trip_list_empty(runner, test_db):
-    """Test: trip-list wenn keine Reisen existieren."""
+    """trip list when no trips exist."""
     result = runner.invoke(cli, ["trip", "list"])
 
     assert result.exit_code == 0
@@ -62,7 +62,7 @@ def test_trip_list_empty(runner, test_db):
 
 
 def test_trip_list_with_data(runner, test_db):
-    """Test: trip-list mit Daten."""
+    """trip list with data."""
     runner.invoke(
         cli,
         [
@@ -87,7 +87,7 @@ def test_trip_list_with_data(runner, test_db):
 
 
 def test_fuel_add_valid(runner, test_db):
-    """Test: fuel-add mit gültigen Parametern."""
+    """fuel add with valid parameters."""
     result = runner.invoke(
         cli,
         [
@@ -109,7 +109,7 @@ def test_fuel_add_valid(runner, test_db):
 
 
 def test_fuel_add_invalid_date(runner, test_db):
-    """Test: fuel-add mit ungültigem Datum."""
+    """fuel add with an invalid date."""
     result = runner.invoke(
         cli,
         [
@@ -165,7 +165,7 @@ def test_trip_add_rejects_non_positive_km(runner, test_db, km):
     ],
 )
 def test_fuel_add_rejects_invalid_numbers(runner, test_db, option, value):
-    """Test: fuel-add lehnt nicht-positive Mengen/Preise und negative km ab."""
+    """fuel add rejects non-positive amounts/prices and negative km."""
     args = {
         "--liters": "50.5",
         "--price-per-liter": "1.85",
@@ -182,7 +182,7 @@ def test_fuel_add_rejects_invalid_numbers(runner, test_db, option, value):
 
 
 def test_fuel_add_accepts_zero_odometer(runner, test_db):
-    """Test: km-Stand 0 ist gültig (Neufahrzeug)."""
+    """An odometer reading of 0 is valid (brand-new vehicle)."""
     result = runner.invoke(
         cli,
         [
@@ -203,7 +203,7 @@ def test_fuel_add_accepts_zero_odometer(runner, test_db):
 
 
 def test_fuel_list_empty(runner, test_db):
-    """Test: fuel-list wenn keine Tankfüllungen existieren."""
+    """fuel list when no fuel entries exist."""
     result = runner.invoke(cli, ["fuel", "list"])
 
     assert result.exit_code == 0
@@ -211,7 +211,7 @@ def test_fuel_list_empty(runner, test_db):
 
 
 def test_fuel_list_with_data(runner, test_db):
-    """Test: fuel-list mit Daten."""
+    """fuel list with data."""
     runner.invoke(
         cli,
         [
@@ -235,7 +235,7 @@ def test_fuel_list_with_data(runner, test_db):
 
 
 def test_fuel_list_consumption_calculation(runner, test_db):
-    """Test: L/100km wird korrekt berechnet, auch bei mehreren Eintraegen."""
+    """L/100km is calculated correctly, also with several entries."""
     for liters, odometer, date in [
         (50.0, 10000, "2026-07-01"),
         (45.0, 10500, "2026-07-15"),

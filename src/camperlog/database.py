@@ -53,14 +53,14 @@ class FuelEntryRow(Base):
 
 
 def init_db():
-    """Initialisiert die Datenbank (beim ersten Mal)."""
+    """Initialize the database (creates the schema on first run)."""
     engine = _get_engine()
     Base.metadata.create_all(engine)
     engine.dispose()
 
 
 def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
-    """Speichert eine neue Reise in der Datenbank."""
+    """Store a new trip in the database."""
     from datetime import date as date_type
 
     parsed_date = date_type.fromisoformat(date)
@@ -80,7 +80,7 @@ def add_trip(origin: str, destination: str, km: int, date: str) -> Trip:
 
 
 def get_all_trips() -> List[Trip]:
-    """Lädt alle Reisen aus der Datenbank."""
+    """Load all trips from the database."""
     engine = _get_engine()
     with Session(engine) as session:
         rows = session.query(TripRow).order_by(desc(TripRow.date)).all()
@@ -99,7 +99,7 @@ def get_all_trips() -> List[Trip]:
 def add_fuel_entry(
     date: str, liters: float, price_per_liter: float, odometer: int
 ) -> FuelEntry:
-    """Speichert einen neuen Tankvorgang in der Datenbank."""
+    """Store a new fuel entry in the database."""
     from datetime import date as date_type
 
     parsed_date = date_type.fromisoformat(date)
@@ -127,7 +127,7 @@ def add_fuel_entry(
 
 
 def get_all_fuel() -> List[FuelEntry]:
-    """Lädt alle Tankvorgänge aus der Datenbank."""
+    """Load all fuel entries from the database."""
     engine = _get_engine()
     with Session(engine) as session:
         rows = session.query(FuelEntryRow).order_by(desc(FuelEntryRow.date)).all()

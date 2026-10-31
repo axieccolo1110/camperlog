@@ -92,7 +92,7 @@ def test_other_cli_commands_work_without_config(no_web_vars, test_db):
 
 
 def test_uvicorn_direct_start_aborts_without_config(tmp_path):
-    """Railway startet uvicorn direkt, nicht über ``camperlog serve``."""
+    """Railway starts uvicorn directly, not via ``camperlog serve``."""
     env = {k: v for k, v in os.environ.items() if k not in WEB_VARS}
     env["DATABASE_URL"] = f"sqlite:///{tmp_path / 'x.db'}"
 

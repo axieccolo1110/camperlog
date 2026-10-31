@@ -4,11 +4,11 @@ from camperlog.models import FuelEntry
 
 
 def consumption_labels(entries: List[FuelEntry]) -> List[str]:
-    """Berechnet L/100km-Labels, Index-parallel zu `entries`.
+    """Compute L/100km labels, index-parallel to `entries`.
 
-    Erwartet `entries` absteigend nach Datum sortiert (neueste zuerst), wie
-    von `get_all_fuel()` geliefert. Der Vorgänger-km-Stand steht damit beim
-    naechsten (aelteren) Eintrag, nicht beim vorherigen.
+    Expects `entries` sorted by date descending (newest first), as returned by
+    `get_all_fuel()`. The previous odometer reading is therefore found at the
+    next (older) entry, not at the preceding one.
     """
     labels: List[str] = []
     for i, entry in enumerate(entries):

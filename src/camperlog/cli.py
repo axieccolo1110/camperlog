@@ -18,7 +18,7 @@ POSITIVE_FLOAT = click.FloatRange(min=0, min_open=True)
 
 
 def _validate_date(ctx, param, value):
-    """Click-Callback: prüft das Datumsformat YYYY-MM-DD."""
+    """Click callback: validate the date format YYYY-MM-DD."""
     try:
         datetime.strptime(value, "%Y-%m-%d")
     except ValueError:
