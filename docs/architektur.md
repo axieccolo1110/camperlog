@@ -73,7 +73,8 @@ Domänenklassen sind zugleich das ORM-Mapping ([ADR 0004](adr/0004-domaenenklass
 
 Festlegungen:
 
-- **Reihenfolge der Stopps** über ein explizites Feld `position`, nicht über das Datum. Zwei Stopps am selben Tag sind erlaubt.
+- **Reihenfolge der Stopps:** sortiert nach `datum`, bei gleichem Datum nach `position` (Erfassungsreihenfolge innerhalb des Tages). Manuelles Umsortieren ist vorerst nicht vorgesehen. Das Datum eines Stopps muss im Zeitraum seines Trips liegen, das prüft `services/trips.py`.
+- **Löschen:** Ein Trip nimmt seine Stopps mit. Einen Stellplatz mit verweisenden Stopps lehnt der Service ab.
 - **Ort eines Stopps:** Mit Stellplatz-Referenz gilt der Ort des Stellplatzes. Eigene Koordinaten am Stopp werden dann ignoriert.
 - **Effektiver Status eines Stellplatzes** wird beim Lesen berechnet: „besucht“, wenn der manuelle Status „besucht“ ist **oder** ein Stopp mit Datum ≤ heute auf ihn verweist. Würde man den Status beim Speichern setzen, bliebe ein in der Zukunft geplanter Stopp nach seinem Datum fälschlich „vorgemerkt“.
 - **Tankvorgang:** eine Zeile in `ausgaben` mit gefüllten Sprit-Feldern. `services/ausgaben.py` erzwingt: Kategorie Sprit genau dann, wenn Liter, Preis pro Liter und Kilometerstand gesetzt sind. Der Betrag einer Sprit-Ausgabe wird aus Liter × Preis berechnet.
