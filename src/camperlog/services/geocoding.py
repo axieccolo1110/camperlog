@@ -6,7 +6,9 @@ empty result, never in anything that could block the caller.
 Rules of the Nominatim usage policy that this module keeps (as far as known when it
 was written, check https://operations.osmfoundation.org/policies/nominatim/ when
 changing it): an identifying User-Agent, at most one request per second, cached
-results, no search while typing (the caller searches once per finished input).
+results. The web UI debounces its search-while-typing (ADR 0006) so it stays
+within that one-request-per-second budget; this module enforces the budget either
+way, regardless of how fast a caller asks.
 """
 
 import threading

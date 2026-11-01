@@ -2,46 +2,37 @@
 
 <script>
   // --- coordinate lookup for a typed place name ---------------------------------
-  // When the place field is left and no coordinates are entered, ask the server
-  // once. One match fills the coordinates, several are offered, nothing found or
-  // an unreachable service never blocks the form. Entered coordinates are never
-  // overwritten. Nothing is searched while typing.
+  // While the place field has at least two characters and no coordinates are
+  // entered, a debounced lookup (one request per pause in typing, never on every
+  // keystroke) shows up to five suggestions in a dropdown attached to the field.
+  // Picking one (click, or arrow keys + enter) fills the coordinates and closes
+  // the dropdown; Escape or a click outside closes it without filling anything.
+  // Nothing found or an unreachable service never blocks the form. Entered
+  // coordinates are never overwritten.
   function attachLookup(placeId, latId, lonId, boxId) {
+    const DEBOUNCE_MS = 400;
+    const MIN_QUERY_LENGTH = 2;
+
     const place = document.getElementById(placeId);
     const lat = document.getElementById(latId);
     const lon = document.getElementById(lonId);
     const box = document.getElementById(boxId);
-    let lastQuery = null;
     let serial = 0;
     let pending = Promise.resolve();
+    let debounceTimer = null;
+    let dropdown = null;
+    let results = [];
+    let activeIndex = -1;
 
     const coordinatesEmpty = () => !lat.value && !lon.value;
 
-    function show(message, places) {
+    function show(message) {
       box.replaceChildren();
       if (!message) return;
       const text = document.createElement('p');
       text.className = 'lookup-hint';
       text.textContent = message;
       box.append(text);
-      if (places) {
-        const list = document.createElement('div');
-        list.className = 'lookup-choices';
-        places.forEach((p) => {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'btn btn-secondary btn-small';
-          button.textContent = p.label;
-          button.addEventListener('click', () => {
-            lat.value = p.lat;
-            lon.value = p.lon;
-            show(`Koordinaten für „${p.label}“ eingetragen.`);
-            addAttribution();
-          });
-          list.append(button);
-        });
-        box.append(list);
-      }
     }
 
     function addAttribution() {
@@ -56,6 +47,74 @@
       box.append(small);
     }
 
+    function onOutsideClick(e) {
+      if (!dropdown || dropdown.contains(e.target) || e.target === place) return;
+      closeDropdown();
+    }
+
+    function closeDropdown() {
+      if (!dropdown) return;
+      dropdown.remove();
+      dropdown = null;
+      results = [];
+      activeIndex = -1;
+      place.setAttribute('aria-expanded', 'false');
+      place.removeAttribute('aria-activedescendant');
+      document.removeEventListener('click', onOutsideClick, true);
+    }
+
+    function highlight(index) {
+      const options = dropdown.querySelectorAll('[role="option"]');
+      options.forEach((el, i) => {
+        const on = i === index;
+        el.classList.toggle('active', on);
+        el.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      activeIndex = index;
+      if (index >= 0) {
+        place.setAttribute('aria-activedescendant', options[index].id);
+        options[index].scrollIntoView({ block: 'nearest' });
+      } else {
+        place.removeAttribute('aria-activedescendant');
+      }
+    }
+
+    function choose(p) {
+      lat.value = p.lat;
+      lon.value = p.lon;
+      closeDropdown();
+      show(`Koordinaten für „${p.label}“ eingetragen.`);
+      addAttribution();
+    }
+
+    function openDropdown(places) {
+      closeDropdown();
+      results = places;
+      dropdown = document.createElement('div');
+      dropdown.className = 'lookup-dropdown';
+      dropdown.id = boxId + '-dropdown';
+      dropdown.setAttribute('role', 'listbox');
+      places.forEach((p, i) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.id = `${dropdown.id}-${i}`;
+        option.className = 'lookup-option';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        option.textContent = p.label;
+        // mousedown (not click) fires before the field would blur, so the
+        // option is still in the DOM when the browser decides where to focus.
+        option.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          choose(p);
+        });
+        dropdown.append(option);
+      });
+      place.insertAdjacentElement('afterend', dropdown);
+      place.setAttribute('aria-expanded', 'true');
+      document.addEventListener('click', onOutsideClick, true);
+    }
+
     async function lookup(query, mine) {
       show('Suche Koordinaten …');
       let data;
@@ -67,7 +126,7 @@
         if (mine === serial) show('Ortssuche gerade nicht erreichbar. Koordinaten bitte von Hand eintragen.');
         return;
       }
-      // The user may have moved on or typed coordinates meanwhile.
+      // The user may have moved on, typed coordinates, or changed the query meanwhile.
       if (mine !== serial || !coordinatesEmpty() || place.value.trim() !== query) {
         show('');
         return;
@@ -76,27 +135,60 @@
         show('Ortssuche gerade nicht erreichbar. Koordinaten bitte von Hand eintragen.');
       } else if (data.results.length === 0) {
         show('Kein Ort gefunden. Koordinaten bitte von Hand eintragen.');
-      } else if (data.results.length === 1) {
-        const p = data.results[0];
-        lat.value = p.lat;
-        lon.value = p.lon;
-        show(`Koordinaten für „${p.label}“ eingetragen.`);
-        addAttribution();
       } else {
-        show('Mehrere Orte gefunden, bitte auswählen:', data.results);
+        show('');
+        openDropdown(data.results);
         addAttribution();
       }
     }
 
-    place.addEventListener('input', () => { lastQuery = null; });
-    place.addEventListener('blur', () => {
+    place.setAttribute('role', 'combobox');
+    place.setAttribute('aria-autocomplete', 'list');
+    place.setAttribute('aria-expanded', 'false');
+    place.setAttribute('aria-controls', boxId + '-dropdown');
+
+    place.addEventListener('input', () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      closeDropdown();
       const query = place.value.trim();
-      if (query.length < 2 || !coordinatesEmpty() || query === lastQuery) return;
-      lastQuery = query;
-      serial += 1;
-      pending = lookup(query, serial);
+      if (query.length < MIN_QUERY_LENGTH || !coordinatesEmpty()) {
+        show('');
+        pending = Promise.resolve();
+        return;
+      }
+      pending = new Promise((resolve) => {
+        debounceTimer = setTimeout(() => {
+          serial += 1;
+          lookup(query, serial).then(resolve);
+        }, DEBOUNCE_MS);
+      });
     });
-    // Saving right after typing must wait for the answer.
-    return { settled: () => pending };
+
+    place.addEventListener('keydown', (e) => {
+      if (!dropdown) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlight(Math.min(activeIndex + 1, results.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlight(Math.max(activeIndex - 1, 0));
+      } else if (e.key === 'Enter') {
+        // Always swallow Enter while the dropdown is open, even with several
+        // matches and none highlighted yet — otherwise it falls through to a
+        // native form submit with nothing chosen.
+        e.preventDefault();
+        if (activeIndex >= 0) {
+          choose(results[activeIndex]);
+        } else if (results.length === 1) {
+          choose(results[0]);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeDropdown();
+      }
+    });
+
+    // Saving right after typing must wait for the debounced lookup to settle.
+    return { settled: () => pending, close: closeDropdown };
   }
 </script>
