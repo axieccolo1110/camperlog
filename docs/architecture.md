@@ -1,6 +1,6 @@
 # CamperLog architecture (target state)
 
-As of 2026-10-31 · Describes the target state after the milestones from the [PRD](prd-realignment.md). The current state is described in [CLAUDE.md](../CLAUDE.md). Terms: see [CONTEXT.md](../CONTEXT.md).
+As of 2026-10-31 · Describes the target state after the milestones from the [PRD](prd-realignment.md). The current state is described in [CLAUDE.md](../CLAUDE.md). Terms: see [GLOSSARY.md](../GLOSSARY.md).
 
 ## Overview
 

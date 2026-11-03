@@ -1,6 +1,6 @@
 # PRD: CamperLog realignment — a private travel journal with a map
 
-As of 2026-10-31 · Terms: see [CONTEXT.md](../CONTEXT.md) · Decisions: see [docs/adr/](adr/)
+As of 2026-10-31 · Terms: see [GLOSSARY.md](../GLOSSARY.md) · Decisions: see [docs/adr/](adr/)
 
 ## Problem
 

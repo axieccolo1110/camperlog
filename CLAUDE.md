@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Language
 
-English is the leading language of this repository (it is public): code, comments, docstrings, identifiers, test names, commit messages, PR and issue text, and documentation are written in English. German stays only where users see it: the web UI, CLI output and `--help` texts, and error messages. Domain terms are named in English (e.g. campsite, stop, expense, category); the glossary in `CONTEXT.md` maps them to the German terms.
+English is the leading language of this repository (it is public): code, comments, docstrings, identifiers, test names, commit messages, PR and issue text, and documentation are written in English. German stays only where users see it: the web UI, CLI output and `--help` texts, and error messages. Domain terms are named in English (e.g. campsite, stop, expense, category); the glossary in `GLOSSARY.md` maps them to the German terms.
 
 ## Commands
 
@@ -68,3 +68,17 @@ The project has two entry points that share the same database layer:
 **Tests:** `tests/conftest.py` monkeypatches `DATABASE_URL` to a temporary SQLite file so all tests are isolated; its `session` fixture gives services tests (`tests/services/`) a session on that database. Dates in domain objects are `datetime.date`; the API and CLI convert from and to `YYYY-MM-DD` strings. Integration tests use FastAPI's `TestClient` (via `httpx`); `tests/integration/conftest.py` sets the web env vars via monkeypatch, builds the app with `create_app()` and offers `anon_client` (not logged in) and `api_client` (logged in).
 
 **Deployment:** Railway via `railway.toml` (nixpacks builder, `/health` healthcheck). Production uses PostgreSQL; local dev uses SQLite.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues of `axieccolo1110/camperlog` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at the repo root plus `docs/adr/`. See `docs/agents/domain.md`.
