@@ -94,3 +94,22 @@ Aufbau eines Eintrags: **Was** · **Technik** · **Lief gut / lief schlecht** ·
 - Datenumbauten brauchen einen Test mit Altdaten, bevor man sie für fertig hält. Die Struktur-Tests allein hätten den Datenverlust nicht gefunden.
 - Bei Tests auf „schlägt fehl“ immer auch den Grund prüfen, sonst bleiben sie grün, wenn der Test selbst kaputt ist.
 - Gestapelte PRs sparen Wartezeit, kosten aber beim Mergen Aufmerksamkeit. Die Reihenfolge gehört in jede Beschreibung.
+
+---
+
+## 2026-11-03 — Agent-Skills einrichten (Issue-Tracker, Triage-Labels, Glossar)
+
+**Was:** Mit dem Skill `setup-matt-pocock-skills` die Repo-Konfiguration angelegt, die die Engineering-Skills erwarten: GitHub als Issue-Tracker, die fünf Standard-Triage-Labels (vier neu auf GitHub angelegt) und die Regeln, wie Glossar und ADRs gelesen werden. `CONTEXT.md` heißt jetzt `GLOSSARY.md`. PR #67.
+
+**Technik:**
+- *Setup-Skill statt Handarbeit:* Der Skill schaut sich das Repo zuerst an (Remote, CLAUDE.md, Glossar, ADRs, installierte Skills) und fragt dann nur, was noch offen ist: eine Frage pro Abschnitt, jeweils mit Empfehlung.
+- *Entwurf vor dem Schreiben:* Alle Dateien wurden als Entwurf gezeigt und erst nach Freigabe geschrieben.
+
+**Lief gut:**
+- Was sich aus dem Repo ablesen ließ, hat der Agent nicht gefragt: GitHub-Remote, kein Monorepo, vorhandene Labels wie `wontfix`.
+- Bei der Umbenennung sind historische Einträge (Lernprotokoll) bewusst unverändert geblieben. Nur aktuelle Verweise wurden angepasst.
+
+**Lief schlecht:**
+- Zwei Fragen in einer Nachricht (Labels + Umbenennung), und dann kam per Spracheingabe nur „ja“. Unklar war, worauf es sich bezog. Der Agent hat bei der Umbenennung noch einmal ausdrücklich nachgefragt, aber besser wäre gewesen, gar nicht erst zwei Fragen zu bündeln.
+
+**Lernpunkt:** Bei Spracheingabe gilt: eine Frage, eine Antwort. Kurze Antworten wie „ja“ sind nur dann eindeutig, wenn genau eine Frage offen ist.
