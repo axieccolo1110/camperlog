@@ -147,6 +147,7 @@
       <p class="empty-row">Keine Tankfüllungen vorhanden.</p>
       {% endfor %}
     </div>
+    <p class="form-error" id="fuel-delete-error" style="padding: 0 20px 12px" hidden></p>
     <div class="panel-footer">
       <span>{{ fuel_entries|length }} Tankfüllung{{ "en" if fuel_entries|length != 1 }} insgesamt</span>
     </div>
@@ -265,10 +266,13 @@
     button.addEventListener('click', async () => {
       const row = button.closest('.list-row').dataset;
       if (!confirm(`Tankfüllung vom ${row.date} (${row.liters} L, ${row.odometer} km) wirklich löschen?`)) return;
-      const errorEl = document.getElementById('fuel-error');
+      const errorEl = document.getElementById('fuel-delete-error');
+      errorEl.hidden = true;
       if (await sendFuel('DELETE', `/api/fuel/${row.fuelId}`, null, errorEl)) {
         camperlogFlash('Tankfüllung gelöscht');
         location.reload();
+      } else {
+        errorEl.hidden = false;
       }
     });
   });
