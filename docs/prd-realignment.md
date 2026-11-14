@@ -1,6 +1,6 @@
 # PRD: CamperLog realignment — a private travel journal with a map
 
-As of 2026-10-31 · Terms: see [GLOSSARY.md](../GLOSSARY.md) · Decisions: see [docs/adr/](adr/)
+As of 2026-11-14 · Terms: see [GLOSSARY.md](../GLOSSARY.md) · Decisions: see [docs/adr/](adr/)
 
 ## Problem
 
@@ -19,9 +19,10 @@ CamperLog complements the specialist apps instead of replacing them ([ADR 0001](
 Explicitly **not** part of this realignment:
 
 - Own campsite search, crowd database or ratings
-- Route planning or navigation (the map only shows straight lines between stops)
 - Multiple users or accounts. CamperLog has exactly one user.
 - A full finance or maintenance tool in the style of Fuelio
+
+Route planning was a non-goal of this realignment until 2026-11-14, when the product owner asked for advance trip planning (estimated driving time and distance between stops, ahead of the journey — not just the map's retrospective straight line). It now has a placeholder milestone, M7.
 
 ## Target audience
 
@@ -96,6 +97,10 @@ The order follows the dependencies: each milestone builds on the previous one.
 ### M6 — Maintenance (placeholder)
 
 Reminders for maintenance by odometer reading or time (e.g. oil change) are wanted but have low priority. Structure and scope will only be defined when the milestone comes up.
+
+### M7 — Route planning (placeholder)
+
+Active planning ahead of a journey — e.g. estimated driving time and distance between planned stops — rather than just the retrospective map's straight line (M3). Needs an external routing service, parallel to the geocoding decision in [ADR 0006](adr/0006-coordinate-lookup-via-nominatim-on-the-server.md). Structure and scope (a single leg vs. a whole trip, waypoint order suggestions or not) will only be defined when the milestone comes up — see issue tracker.
 
 ## Open points
 
