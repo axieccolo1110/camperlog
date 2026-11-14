@@ -82,3 +82,7 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: `GLOSSARY.md` at the repo root plus `docs/adr/`. See `docs/agents/domain.md`.
+
+### CLI operation
+
+When the user asks in natural language to record or look up trips, stops, refuelings or campsites, operate the `camperlog` CLI for them: show each command and its result, confirm before deleting, and check the database target before writing. See `docs/agents/cli-operation.md`.
