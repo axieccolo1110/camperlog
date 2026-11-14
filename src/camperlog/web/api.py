@@ -13,7 +13,12 @@ from camperlog.services.campsites import (
     list_bookmarked_campsites,
     list_campsites,
 )
-from camperlog.services.expenses import add_fuel_entry, list_fuel_entries
+from camperlog.services.expenses import (
+    add_fuel_entry,
+    delete_fuel_entry,
+    list_fuel_entries,
+    update_fuel_entry,
+)
 from camperlog.services.geocoding import Geocoder, GeocodingUnavailable, get_geocoder
 from camperlog.services.map_data import retrospective
 from camperlog.services.trips import (
@@ -167,6 +172,27 @@ def create_fuel(body: FuelEntryCreate, session: Session = Depends(get_session)):
         body.odometer,
     )
     return FuelEntryRead.model_validate(entry)
+
+
+@router.put("/fuel/{entry_id}", response_model=FuelEntryRead)
+def replace_fuel(
+    entry_id: int, body: FuelEntryCreate, session: Session = Depends(get_session)
+):
+    entry = update_fuel_entry(
+        session,
+        entry_id,
+        dt.date.fromisoformat(body.date),
+        body.liters,
+        body.price_per_liter,
+        body.odometer,
+    )
+    return FuelEntryRead.model_validate(entry)
+
+
+@router.delete("/fuel/{entry_id}", status_code=204)
+def remove_fuel(entry_id: int, session: Session = Depends(get_session)):
+    delete_fuel_entry(session, entry_id)
+    return Response(status_code=204)
 
 
 @router.get("/geocode", response_model=GeocodeResponse)

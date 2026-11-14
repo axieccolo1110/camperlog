@@ -85,13 +85,49 @@
   </form>
 </section>
 
+<section class="panel" id="fuel-edit-card" hidden>
+  <div class="panel-header"><h2>Tankfüllung bearbeiten</h2></div>
+  <form id="fuel-edit-form" novalidate>
+    <div class="form-grid">
+      <div class="field">
+        <label for="edit-fuel-date">Datum</label>
+        <div class="input-wrap">
+          <span class="field-icon" aria-hidden="true">{{ icons.calendar(15) }}</span>
+          <input type="date" id="edit-fuel-date" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="edit-fuel-liters">Liter</label>
+        <div class="input-wrap">
+          <input type="number" id="edit-fuel-liters" inputmode="decimal" step="0.01" min="0.1" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="edit-fuel-price">€ / Liter</label>
+        <div class="input-wrap">
+          <input type="number" id="edit-fuel-price" inputmode="decimal" step="0.001" min="0.001" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="edit-fuel-odometer">km-Stand</label>
+        <div class="input-wrap">
+          <input type="number" id="edit-fuel-odometer" inputmode="numeric" min="0" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Änderungen speichern</button>
+      <button type="button" class="btn btn-secondary" id="fuel-edit-cancel">Abbrechen</button>
+    </div>
+    <p class="form-error" id="fuel-edit-error"></p>
+  </form>
+</section>
+
 <section class="content-grid">
 
   <div class="panel">
     <div class="panel-header"><h2>Alle Tankfüllungen</h2></div>
     <div>
       {% for e in fuel_entries %}
-      <div class="list-row">
+      <div class="list-row" data-fuel-id="{{ e.id }}" data-date="{{ e.date }}" data-liters="{{ e.liters }}" data-price="{{ e.price_per_liter }}" data-odometer="{{ e.odometer }}">
         <div class="row-main">
           <div class="row-title">{{ e.date }}</div>
           <div class="row-sub">{{ "%.1f"|format(e.liters) }} L · {{ "%.3f"|format(e.price_per_liter) }} €/L · {{ e.odometer }} km</div>
@@ -101,6 +137,10 @@
           {% if e.consumption not in ("-", "?") %}
           <div class="row-value-sub"><span class="pill{{ ' warn' if e.consumption|float > 9 else ' good' }}">{{ e.consumption }} L/100km</span></div>
           {% endif %}
+        </div>
+        <div class="row-actions">
+          <button type="button" class="icon-btn edit-fuel" aria-label="Tankfüllung vom {{ e.date }} bearbeiten">{{ icons.pencil() }}</button>
+          <button type="button" class="icon-btn delete-fuel" aria-label="Tankfüllung vom {{ e.date }} löschen">{{ icons.trash() }}</button>
         </div>
       </div>
       {% else %}
@@ -157,6 +197,80 @@
     } catch {
       errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
     }
+  });
+</script>
+<script>
+  const editCard = document.getElementById('fuel-edit-card');
+  const editError = document.getElementById('fuel-edit-error');
+  let editingFuelId = null;
+
+  async function sendFuel(method, url, payload, errorEl) {
+    errorEl.textContent = '';
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: payload === null ? undefined : JSON.stringify(payload),
+      });
+      if (res.ok) return true;
+      let message = 'Fehler beim Speichern. Bitte Eingaben prüfen.';
+      try {
+        const body = await res.json();
+        if (typeof body.detail === 'string') message = body.detail;
+      } catch {}
+      errorEl.textContent = message;
+    } catch {
+      errorEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+    }
+    return false;
+  }
+
+  document.querySelectorAll('.edit-fuel').forEach((button) => {
+    button.addEventListener('click', () => {
+      const row = button.closest('.list-row').dataset;
+      editingFuelId = row.fuelId;
+      document.getElementById('edit-fuel-date').value = row.date;
+      document.getElementById('edit-fuel-liters').value = row.liters;
+      document.getElementById('edit-fuel-price').value = row.price;
+      document.getElementById('edit-fuel-odometer').value = row.odometer;
+      editError.textContent = '';
+      editCard.hidden = false;
+      editCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+
+  document.getElementById('fuel-edit-cancel').addEventListener('click', () => {
+    editingFuelId = null;
+    editCard.hidden = true;
+    editError.textContent = '';
+  });
+
+  document.getElementById('fuel-edit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = document.getElementById('edit-fuel-date').value;
+    const liters = parseFloat(document.getElementById('edit-fuel-liters').value);
+    const price_per_liter = parseFloat(document.getElementById('edit-fuel-price').value);
+    const odometer = parseInt(document.getElementById('edit-fuel-odometer').value, 10);
+    if (!date || !liters || !price_per_liter || Number.isNaN(odometer)) {
+      editError.textContent = 'Bitte alle Felder ausfüllen.';
+      return;
+    }
+    if (await sendFuel('PUT', `/api/fuel/${editingFuelId}`, { date, liters, price_per_liter, odometer }, editError)) {
+      camperlogFlash('Änderungen gespeichert');
+      location.reload();
+    }
+  });
+
+  document.querySelectorAll('.delete-fuel').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const row = button.closest('.list-row').dataset;
+      if (!confirm(`Tankfüllung vom ${row.date} (${row.liters} L, ${row.odometer} km) wirklich löschen?`)) return;
+      const errorEl = document.getElementById('fuel-error');
+      if (await sendFuel('DELETE', `/api/fuel/${row.fuelId}`, null, errorEl)) {
+        camperlogFlash('Tankfüllung gelöscht');
+        location.reload();
+      }
+    });
   });
 </script>
 <script>
