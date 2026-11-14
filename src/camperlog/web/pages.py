@@ -18,6 +18,7 @@ def _fuel_entries_with_consumption(fuel):
     labels = consumption_labels(fuel)
     return [
         {
+            "id": e.id,
             "date": e.date,
             "liters": e.liters,
             "price_per_liter": e.price_per_liter,

@@ -3,7 +3,12 @@
 import click
 from rich.table import Table
 
-from camperlog.commands.common import console, validate_date, validate_optional_date
+from camperlog.commands.common import (
+    confirm_delete,
+    console,
+    validate_date,
+    validate_optional_date,
+)
 from camperlog.db import session_scope
 from camperlog.services.errors import NotFoundError, ValidationError
 from camperlog.services.trips import (
@@ -166,14 +171,6 @@ def stop_add(trip_id, date, place, lat, lon, campsite_id):
     )
 
 
-def _confirm(question: str, yes: bool) -> None:
-    """Ask for confirmation before deleting; ``--yes`` skips the question."""
-    if yes or click.confirm(question):
-        return
-    console.print("[yellow]Abgebrochen. Nichts wurde gelöscht.[/yellow]")
-    raise click.exceptions.Exit(1)
-
-
 @trip.command("edit")
 @click.argument("trip_id", type=int)
 @click.option(
@@ -234,7 +231,7 @@ def trip_delete(trip_id, yes):
                 f"Reise {item.start_date.isoformat()} – {item.end_date.isoformat()} "
                 f"mit {stops} wirklich löschen?"
             )
-            _confirm(question, yes)
+            confirm_delete(question, yes)
             delete_trip(session, trip_id)
     except NotFoundError as e:
         raise click.ClickException(str(e))
@@ -340,7 +337,9 @@ def stop_delete(stop_id, yes):
         with session_scope() as session:
             item = get_stop(session, stop_id)
             where = f" in {item.place_name}" if item.place_name else ""
-            _confirm(f"Stopp vom {item.date.isoformat()}{where} wirklich löschen?", yes)
+            confirm_delete(
+                f"Stopp vom {item.date.isoformat()}{where} wirklich löschen?", yes
+            )
             delete_stop(session, stop_id)
     except NotFoundError as e:
         raise click.ClickException(str(e))

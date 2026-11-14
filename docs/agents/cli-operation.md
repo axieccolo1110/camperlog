@@ -28,7 +28,7 @@ Reads (`list`, `show`) are harmless on any target.
 | --- | --- |
 | Trips | `trip add --start --end [--km]`, `trip list`, `trip show ID`, `trip edit ID [--start --end --km --clear-km]`, `trip delete ID` |
 | Stops | `trip stop add TRIP_ID --date [--place --lat --lon --campsite]`, `trip stop edit STOP_ID …`, `trip stop delete STOP_ID` |
-| Refuelings | `fuel add --date --liters --price-per-liter --odometer`, `fuel list` |
+| Refuelings | `fuel add --date --liters --price-per-liter --odometer`, `fuel list`, `fuel edit ID [--date --liters --price-per-liter --odometer]`, `fuel delete ID` |
 | Campsites | `campsite add --name --lat --lon [--status --notes --playground --pets --url]`, `campsite list` |
 
 Run `camperlog <group> <command> --help` for the exact options. Dates are `YYYY-MM-DD`; resolve relative dates ("nächsten Freitag") against today's date and show the resolved date in the command. Decimal commas in the user's text become points in the command.
@@ -39,7 +39,6 @@ Run `camperlog <group> <command> --help` for the exact options. Dates are `YYYY-
 2. **Ask only when really ambiguous.** If several readings are plausible (e.g. a stop without saying which of several trips), ask. If there is one obvious reading (e.g. only one trip exists), use it and name the assumption. Never invent missing values such as an odometer reading.
 3. **Confirm before deleting.** `delete` commands ask interactively through `click.confirm`, which cannot be answered from the agent's shell. Ask the user in the chat first, then run the command with `--yes`. `edit` needs no extra confirmation beyond rule 1.
 4. **Say what the CLI cannot do, and stop there.** Do not reach past the CLI to the service layer, the API or the database. Known gaps:
-   - Refuelings cannot be edited or deleted (issue #71).
    - Campsites cannot be edited or deleted (issue #26).
    - `campsite list` does not show notes or link.
 5. **Explain errors in context.** Validation errors are German messages from the services (e.g. a stop date outside the trip period); say in one sentence what to change, do not just repeat the text.

@@ -515,3 +515,97 @@ def test_stop_delete_with_yes(runner, trip_with_stop):
 
 def test_stop_delete_unknown_stop(runner, test_db):
     assert runner.invoke(cli, ["trip", "stop", "delete", "42", "--yes"]).exit_code != 0
+
+
+def _add_fuel(runner, date, liters, price, odometer):
+    result = runner.invoke(
+        cli,
+        [
+            "fuel",
+            "add",
+            "--date",
+            date,
+            "--liters",
+            liters,
+            "--price-per-liter",
+            price,
+            "--odometer",
+            odometer,
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+
+@pytest.fixture
+def two_fuel_entries(runner, test_db):
+    _add_fuel(runner, "2026-07-01", "40", "1.80", "10000")
+    _add_fuel(runner, "2026-07-15", "45", "1.85", "10500")
+
+
+def test_fuel_add_and_list_show_the_entry_number(runner, test_db):
+    added = runner.invoke(
+        cli,
+        ["fuel", "add", "--date", "2026-07-01", "--liters", "40"]
+        + ["--price-per-liter", "1.8", "--odometer", "10000"],
+    )
+
+    assert "Nr. 1" in added.output
+    assert "Nr." in runner.invoke(cli, ["fuel", "list"]).output
+
+
+def test_fuel_edit_changes_only_the_given_fields(runner, two_fuel_entries):
+    result = runner.invoke(cli, ["fuel", "edit", "2", "--price-per-liter", "2.00"])
+
+    assert result.exit_code == 0
+    assert "Tankfüllung 2 geändert" in result.output
+    assert "90.00€" in result.output  # 45 L x 2.00
+    assert "10500 km" in result.output
+
+
+def test_fuel_edit_needs_something_to_change(runner, two_fuel_entries):
+    result = runner.invoke(cli, ["fuel", "edit", "2"])
+
+    assert result.exit_code != 0
+    assert "Nichts zu ändern" in result.output
+
+
+def test_fuel_edit_rejects_a_reading_out_of_order(runner, two_fuel_entries):
+    result = runner.invoke(cli, ["fuel", "edit", "2", "--odometer", "9000"])
+
+    assert result.exit_code != 0
+    assert "vorherigen" in result.output
+
+
+def test_fuel_edit_unknown_entry(runner, test_db):
+    result = runner.invoke(cli, ["fuel", "edit", "42", "--liters", "5"])
+
+    assert result.exit_code != 0
+    assert "42" in result.output
+
+
+def test_fuel_delete_with_yes_removes_the_entry(runner, two_fuel_entries):
+    result = runner.invoke(cli, ["fuel", "delete", "1", "--yes"])
+
+    assert result.exit_code == 0
+    assert "gelöscht" in result.output
+    assert "10000" not in runner.invoke(cli, ["fuel", "list"]).output
+
+
+def test_fuel_delete_asks_and_deletes_on_yes(runner, two_fuel_entries):
+    result = runner.invoke(cli, ["fuel", "delete", "1"], input="y\n")
+
+    assert result.exit_code == 0
+    assert "wirklich löschen" in result.output
+
+
+@pytest.mark.parametrize("answer", ["n\n", "\n"])
+def test_fuel_delete_keeps_the_entry_unless_confirmed(runner, two_fuel_entries, answer):
+    result = runner.invoke(cli, ["fuel", "delete", "1"], input=answer)
+
+    assert result.exit_code != 0
+    assert "Nichts wurde gelöscht" in result.output
+    assert "10000" in runner.invoke(cli, ["fuel", "list"]).output
+
+
+def test_fuel_delete_unknown_entry(runner, test_db):
+    assert runner.invoke(cli, ["fuel", "delete", "42", "--yes"]).exit_code != 0

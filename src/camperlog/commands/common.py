@@ -21,3 +21,11 @@ def validate_date(ctx, param, value) -> dt.date:
 def validate_optional_date(ctx, param, value) -> dt.date | None:
     """Like validate_date, for options that may be left out."""
     return None if value is None else validate_date(ctx, param, value)
+
+
+def confirm_delete(question: str, yes: bool) -> None:
+    """Ask for confirmation before deleting; ``--yes`` skips the question."""
+    if yes or click.confirm(question):
+        return
+    console.print("[yellow]Abgebrochen. Nichts wurde gelöscht.[/yellow]")
+    raise click.exceptions.Exit(1)
